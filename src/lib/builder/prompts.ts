@@ -16,6 +16,11 @@ material genuinely cannot support it):
 - "distractors" are exactly 3 OTHER characters from this same universe who could plausibly have
   said the line — same scene, similar voice, or fan-confusable — but definitively did not.
   Never include the answer among distractors. Never use characters from outside this fandom.
+  Every option (the answer and all 3 distractors) must be an actual named character — never a
+  generic descriptive role ("Howard's therapist", "a coworker") standing in for one.
+  If a character goes by more than one name (a legal name and an alias, a nickname), pick ONE
+  canonical name for them and use it consistently everywhere they appear as an answer or
+  distractor — never list the same person twice under different names in one question's options.
 - "difficulty": 1 = iconic catchphrase any casual fan knows; 2 = memorable line a genuine fan
   places; 3 = deep cut — one-off lines, minor characters, early/late seasons. Aim for roughly
   18 easy / 22 medium / 15 hard.
@@ -24,6 +29,21 @@ material genuinely cannot support it):
   It must never hint at or contain the answer.
 - No duplicate or near-duplicate quotes. No quotes so generic that several answers would be
   fair ("Let's go!"). Every question must have exactly one defensible answer.
+- CAST BALANCE — this is a hard requirement, not a nice-to-have: the bank must be recognizably
+  about THIS fandom's actual protagonist(s) and main cast, weighted the way any fan would expect.
+  The provided candidate material's *volume* per character is not a reliable signal of that
+  character's importance — a minor character can have a long, thorough wiki page while the
+  actual lead has a short one, and you must correct for that, not follow the material's lead.
+  No single character should provide more than ~15% of the total questions unless the work is a
+  true one-protagonist monologue-driven piece. If the named fandom's actual lead(s) are
+  under-represented in the scraped material, generate additional confident, real, iconic lines
+  for them yourself (marking those "fromProvided": false) rather than letting a minor character
+  dominate by volume.
+- SPINOFF/CROSSOVER WIKIS: some wikis cover an entire franchise (a show plus its spinoffs,
+  prequels, or sequels) under one roof. Only use characters and quotes that substantively belong
+  to THE NAMED FANDOM itself. A character who is primarily the lead of a *different* related work
+  sharing the same wiki (e.g. a spinoff protagonist) should be excluded or, at most, used sparingly
+  as a minor/crossover character — never allowed to out-represent the named work's own leads.
 
 TIERS — exactly 5 fan tiers, ordered WORST fan to BEST fan:
 - "name": short, punchy, steeped in this fandom's in-jokes (a place, an insult, a rank, a

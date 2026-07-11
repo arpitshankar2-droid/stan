@@ -119,7 +119,15 @@ export function extractQuoteTemplates(wikitext: string): ParsedQuoteTemplate[] {
 export function extractBulletQuotes(wikitext: string): ParsedQuoteTemplate[] {
   const results: ParsedQuoteTemplate[] = [];
   for (const rawLine of wikitext.split("\n")) {
-    const body = rawLine.trim().replace(/^\*+\s*/, "");
+    const trimmed = rawLine.trim();
+    // The leading "*" is required, not optional — without it, a bare
+    // ''italicized'' line (which some wikis use for stage directions, not
+    // quotes) would otherwise match the same pattern and be mistaken for a
+    // bulleted quote. See BoJack Horseman Wiki's Quotes page, which
+    // interleaves ''[scene description]'' narration between real bulleted
+    // and dialogue-style quotes.
+    if (!trimmed.startsWith("*")) continue;
+    const body = trimmed.replace(/^\*+\s*/, "");
     const match = /^(?:"([^"]{4,})"|''([^']{4,})'')\s*(?:[-–—]\s*(.+))?$/.exec(body);
     if (!match) continue;
     const text = cleanQuoteFragment(match[1] ?? match[2] ?? "");
@@ -138,11 +146,19 @@ export function extractBulletQuotes(wikitext: string): ParsedQuoteTemplate[] {
 export function extractSpeakerDialogue(wikitext: string, speakerName: string): ParsedQuoteTemplate[] {
   const results: ParsedQuoteTemplate[] = [];
   const target = speakerName.trim().toLowerCase();
+  // Two conventions show up on the same page in the wild: colon outside the
+  // bold ('''Name''': text) and colon inside it ('''Name: '''text).
+  const patterns = [/^'''([^':]+)'''\s*:\s*(.+)$/, /^'''([^':]+):\s*'''\s*(.+)$/];
   for (const rawLine of wikitext.split("\n")) {
     const line = rawLine.trim().replace(/^:+\s*/, "");
-    const match = /^'''([^']+)'''\s*:\s*(.+)$/.exec(line);
+    const match = patterns.map((p) => p.exec(line)).find((m): m is RegExpExecArray => m !== null);
     if (!match) continue;
-    if (match[1].trim().toLowerCase() !== target) continue;
+    const label = match[1].trim().toLowerCase();
+    // A character's own Quotes page often calls them by their short name in
+    // dialogue labels ("BoJack") while the character list uses the full
+    // name ("BoJack Horseman") — substring match in either direction
+    // instead of requiring exact equality.
+    if (!label.includes(target) && !target.includes(label)) continue;
     const text = cleanQuoteFragment(match[2]);
     if (text.length >= 4) results.push({ text });
   }
@@ -178,6 +194,27 @@ export function extractHeadingSection(wikitext: string, headingNames: string[]):
   return collected.length > 0 ? collected.join("\n") : null;
 }
 
+// Some wikis' "Quotes" pages mix in scene-recap prose alongside real
+// dialogue, using the exact same formatting (e.g. BoJack Horseman Wiki's
+// `: '''Character''': <what happens next>` sections describing an episode
+// beat, not a spoken line). "<Proper Noun(s)> <physical-action verb>..." at
+// the very start of a line is the recap-prose signature — real dialogue
+// essentially never opens that way.
+const NARRATION_VERB_STEMS = new Set([
+  "walk", "sit", "stand", "shut", "groan", "coo", "sign", "pick", "look", "set", "grab",
+  "pull", "open", "close", "turn", "answer", "enter", "leave", "approach", "chase", "go",
+  "get", "take", "circle", "sees", "smile", "nod", "point", "hug", "kiss", "cry",
+]);
+
+function looksLikeNarration(text: string): boolean {
+  const trimmed = text.trim();
+  if (/\b(is seen|are seen|can be seen)\b/i.test(trimmed)) return true;
+  const match = /^([A-Z][a-z']*(?:\s+(?:and\s+)?[A-Z][a-z']*)*)\s+(\w+)/.exec(trimmed);
+  if (!match) return false;
+  const stem = match[2].toLowerCase().replace(/(ed|s)$/, "");
+  return NARRATION_VERB_STEMS.has(stem);
+}
+
 const QUOTE_SECTION_NAMES = ["Quotes", "Memorable Quotes", "Notable Quotes", "Quotations"];
 
 /**
@@ -187,13 +224,15 @@ const QUOTE_SECTION_NAMES = ["Quotes", "Memorable Quotes", "Notable Quotes", "Qu
  * convention, so there's no value in merging partial hits across strategies.
  */
 export function extractQuotesAnyFormat(wikitext: string, speakerName: string): ParsedQuoteTemplate[] {
-  const templates = extractQuoteTemplates(wikitext);
+  const filterNarration = (items: ParsedQuoteTemplate[]) => items.filter((q) => !looksLikeNarration(q.text));
+
+  const templates = filterNarration(extractQuoteTemplates(wikitext));
   if (templates.length > 0) return templates;
 
-  const bullets = extractBulletQuotes(wikitext);
+  const bullets = filterNarration(extractBulletQuotes(wikitext));
   if (bullets.length > 0) return bullets;
 
-  return extractSpeakerDialogue(wikitext, speakerName);
+  return filterNarration(extractSpeakerDialogue(wikitext, speakerName));
 }
 
 export { QUOTE_SECTION_NAMES };

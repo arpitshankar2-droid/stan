@@ -9,7 +9,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 2. Database — Prisma schema, Neon wiring (pooled + direct), pg_trgm migration
 - [x] 3. Gemini client — structured-output helper, zod schemas, budget gate, prompts
 - [x] 4. Fandom scraper — wiki resolve, strategy-ladder quote scrape, wikitext cleaner
-- [ ] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (batch-1: 3 dev universes)
+- [x] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (batch-1: 3 dev universes)
 - [ ] 6. API routes — universes search/create/status, results grade/get, quiz selection
 - [ ] 7. Home page — hero, search + suggestions, universe wall
 - [ ] 8. Build theater — polling screen, rotating status lines, fail/retry
@@ -23,6 +23,57 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-11** — Task 5 done: `src/lib/builder/pipeline.ts` (normalize/match → lock via
+  BUILDING row → resolve → scrape → LLM → persist, stale-BUILDING retry, FAILED+reason on any
+  error) and `scripts/seed-universes.ts`. Seeding batch 1 for real surfaced problems no amount
+  of typechecking would have caught:
+  - **Gemini API rejected the tightened response schema outright** (400 "constraint... too many
+    states for serving") — the earlier "restructure for reliability" pass (minItems/maxItems/
+    minimum/maximum nested inside a ~70-item array) had only ever been typechecked, never
+    actually called. Reverted `universeResponseSchema` to a loose shape; real validation lives
+    entirely in `parseUniversePayload`'s per-item zod checks, which was always the right layer
+    for it.
+  - **Cast representation was badly skewed on first successful run**: Walter White answered
+    2/129 Breaking Bad questions, Jesse Pinkman zero; BoJack Horseman's own title character
+    answered 6/62 while an obscure character led at 20. Root cause: nothing told the LLM to
+    weight toward a show's actual leads over whoever had the most raw scraped volume, and
+    Breaking Bad's wiki mixes in the entire Better Call Saul cast. Fixed with a per-speaker cap
+    on material fed into the prompt (`MAX_QUOTES_PER_SPEAKER=8` in pipeline.ts) plus explicit
+    CAST BALANCE and SPINOFF/CROSSOVER prompt rules. After: Walter White leads Breaking Bad
+    (10/96), BoJack Horseman leads his own show (10/60), Jesse Pinkman/Skyler/Hank all present
+    (previously absent).
+  - **Checking full answer distribution (not just sample count) caught what 2-3 cherry-picked
+    samples wouldn't have**: this is the same discipline that caught Parks and Rec in the Task 4
+    follow-up, now proven necessary again on the LLM's own output, not just the scrape.
+  - **A second, more serious bug surfaced from pulling samples across specific main-cast
+    members rather than random ones**: BoJack Horseman, Princess Carolyn, and Todd Chavez's
+    SCRAPED "quotes" were third-person scene-recap narration ("Princess Carolyn and Lenny look
+    at photos..."), not dialogue — the LLM's own "discard non-spoken lines" instruction wasn't
+    catching it reliably. Root cause in `extractBulletQuotes` (wikitext.ts): it matched any bare
+    `''italicized''` line, not just genuinely bulleted ones, so it was scooping up BoJack's
+    Wiki's interleaved `''[stage direction]''` narration — and because it found *something*,
+    the pipeline never even tried the correct extractor (`extractSpeakerDialogue`) for that
+    page. Fixed by requiring an actual `*` bullet marker. Also fixed: `extractSpeakerDialogue`
+    only handled one of two colon-position conventions found on the same page, and matched
+    speaker names by exact equality, so a page calling BoJack just "BoJack" against his full
+    character-list name "BoJack Horseman" silently lost all of his own dialogue — switched to
+    substring matching in either direction. Net effect after both fixes: BoJack Horseman
+    65 clean quotes (from 0), Princess Carolyn 56 (from 6 narration lines), Todd Chavez 25
+    (from 2 narration lines).
+  - **User specifically asked about difficulty spread and distractor plausibility** (not just
+    quote authenticity) before trusting the bank. Found genuine working examples (a Cuddlywhiskers
+    monologue thematically confusable with BoJack's own arc; a Diane Nguyen line with Princess
+    Carolyn as a distractor — matches the user's own hypothetical exactly) alongside two small,
+    real bugs: character alias collisions (3/92 Breaking Bad questions list "Jimmy McGill" and
+    "Saul Goodman" — the same person — as separate options) and one generic-role placeholder
+    distractor ("Howard's therapist") instead of a real named character. ~1% of ~360 total
+    questions. Added prompt guidance (one canonical name per person, real named characters only)
+    for all future builds; per user decision, did not spend another rebuild fixing the existing
+    ~1% today given real Gemini budget usage (~13 real requests today against the conservative
+    ~20/day estimate).
+  - Final seeded state: Breaking Bad 92 questions (MIXED), BoJack Horseman 210 (SCRAPED — the
+    narration fix unlocked far more real material than the ~55 target), The Office 59 (MIXED).
+    `tsc --noEmit` clean. All debug/investigation scripts removed before commit.
 - **2026-07-11** — Pre-Task-5 quality investigation, prompted by the user flagging that The
   Office (3) and One Piece (0) yields would mean fabricated quotes shipping as if real — "the
   exact failure mode this whole design was meant to avoid." Investigated both rather than

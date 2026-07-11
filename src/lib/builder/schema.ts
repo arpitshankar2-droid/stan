@@ -79,39 +79,36 @@ export function parseUniversePayload(raw: unknown): UniversePayload {
 }
 
 /**
- * Gemini structured-output schema — deliberately mirrors the zod constraints
- * above (exact lengths, ranges) so constrained decoding rejects bad shapes
- * at generation time instead of us catching them after the fact.
+ * Gemini structured-output schema. Deliberately loose — no minItems/maxItems/
+ * minimum/maximum/minLength anywhere. An earlier version mirrored the zod
+ * constraints exactly (exact-3 distractors, difficulty 1-3, per-string
+ * minLength, all nested inside a ~70-item questions array), which reads well
+ * on paper but Gemini's API rejected outright at request time: "schema
+ * produces a constraint that has too many states for serving" — length/range
+ * bounds nested inside a large array blow up the grammar Gemini has to
+ * compile for constrained decoding. That only surfaced by actually calling
+ * the API; the tightened version had only ever been typechecked. Real
+ * validation now lives entirely in parseUniversePayload's per-item zod
+ * checks below, which was always the correct layer for it — the schema here
+ * just needs to describe shape, not enforce it.
  */
 export const universeResponseSchema: Schema = {
   type: Type.OBJECT,
   required: ["name", "aliases", "characters", "questions", "tiers"],
   properties: {
-    name: { type: Type.STRING, minLength: "1" },
-    aliases: { type: Type.ARRAY, maxItems: "12", items: { type: Type.STRING, minLength: "1" } },
-    characters: {
-      type: Type.ARRAY,
-      minItems: "4",
-      maxItems: "80",
-      items: { type: Type.STRING, minLength: "1" },
-    },
+    name: { type: Type.STRING },
+    aliases: { type: Type.ARRAY, items: { type: Type.STRING } },
+    characters: { type: Type.ARRAY, items: { type: Type.STRING } },
     questions: {
       type: Type.ARRAY,
-      minItems: String(QUESTION_MIN),
-      maxItems: String(QUESTION_MAX),
       items: {
         type: Type.OBJECT,
         required: ["quote", "answer", "distractors", "difficulty", "fromProvided"],
         properties: {
-          quote: { type: Type.STRING, minLength: "4" },
-          answer: { type: Type.STRING, minLength: "1" },
-          distractors: {
-            type: Type.ARRAY,
-            minItems: "3",
-            maxItems: "3",
-            items: { type: Type.STRING, minLength: "1" },
-          },
-          difficulty: { type: Type.INTEGER, minimum: 1, maximum: 3 },
+          quote: { type: Type.STRING },
+          answer: { type: Type.STRING },
+          distractors: { type: Type.ARRAY, items: { type: Type.STRING } },
+          difficulty: { type: Type.INTEGER },
           context: { type: Type.STRING },
           fromProvided: { type: Type.BOOLEAN },
         },
@@ -119,19 +116,12 @@ export const universeResponseSchema: Schema = {
     },
     tiers: {
       type: Type.ARRAY,
-      minItems: String(TIER_COUNT),
-      maxItems: String(TIER_COUNT),
       items: {
         type: Type.OBJECT,
         required: ["name", "lines"],
         properties: {
-          name: { type: Type.STRING, minLength: "1" },
-          lines: {
-            type: Type.ARRAY,
-            minItems: "2",
-            maxItems: "4",
-            items: { type: Type.STRING, minLength: "1" },
-          },
+          name: { type: Type.STRING },
+          lines: { type: Type.ARRAY, items: { type: Type.STRING } },
         },
       },
     },

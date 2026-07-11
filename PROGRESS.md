@@ -6,9 +6,9 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 - [x] 0. Repo bootstrap — git init, PLAN.md, PROGRESS.md, first commit
 - [x] 1. Scaffold — Next 15 + TS + Tailwind + shadcn + Framer Motion, Neon Arena tokens
-- [ ] 2. Database — Prisma schema, Neon wiring (pooled + direct), pg_trgm migration
-      *(code done + typechecked; migration + smoke query blocked on .env — needs Neon strings)*
-- [ ] 3. Gemini client — structured-output helper, zod schemas, budget gate, prompts
+- [~] 2. Database — Prisma schema, Neon wiring (pooled + direct), pg_trgm migration
+      *(code done + typechecked; migration + smoke query still blocked — no real .env yet)*
+- [x] 3. Gemini client — structured-output helper, zod schemas, budget gate, prompts
 - [ ] 4. Fandom scraper — wiki resolve, strategy-ladder quote scrape, wikitext cleaner
 - [ ] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (3 dev universes)
 - [ ] 6. API routes — universes search/create/status, results grade/get, quiz selection
@@ -24,6 +24,15 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-11** — Reconciled checkboxes above with git history (Task 3 had landed but wasn't
+  ticked). Confirmed Task 2's migration is still blocked: no `.env` with real Neon credentials
+  exists yet, so `prisma migrate dev` and the pg_trgm smoke query haven't run.
+- **2026-07-11** — Task 3 done. Gemini client (`gemini.ts`): schema-constrained
+  `generateStructured()`, single retry with temperature nudge, 429s mapped to a typed
+  `rate_limited` error. `builder/schema.ts`: zod + Gemini-schema mirror for the full universe
+  payload (55 questions, 5 tiers). `builder/prompts.ts`: scraped-quotes and generated-fallback
+  prompts encoding difficulty rubric, distractor plausibility, sharp-but-affectionate tone.
+  `builder/budget.ts`: daily build ceiling via `Universe` row count. `tsc --noEmit` clean.
 - **2026-07-11** — Task 1 done. Plan approved; bank bumped to ~55 questions/universe.
   Scaffolded with create-next-app (came down as Next 16 — pinned to next@15.5.20 per hard
   constraint). Tailwind v4, shadcn (radix/nova preset, 7 primitives), framer-motion 12.

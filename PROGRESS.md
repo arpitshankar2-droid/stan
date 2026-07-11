@@ -9,7 +9,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 2. Database — Prisma schema, Neon wiring (pooled + direct), pg_trgm migration
 - [x] 3. Gemini client — structured-output helper, zod schemas, budget gate, prompts
 - [ ] 4. Fandom scraper — wiki resolve, strategy-ladder quote scrape, wikitext cleaner
-- [ ] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (3 dev universes)
+- [ ] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (batch-1: 4 dev universes)
 - [ ] 6. API routes — universes search/create/status, results grade/get, quiz selection
 - [ ] 7. Home page — hero, search + suggestions, universe wall
 - [ ] 8. Build theater — polling screen, rotating status lines, fail/retry
@@ -23,6 +23,22 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-11** — Gemini budget check before Task 4. User caught PLAN.md's stale "~1,000
+  req/day" claim. Verified via WebFetch against Google's own rate-limits and pricing pages
+  directly (not the contradictory third-party blogs from the first search) — neither publishes
+  a static free-tier RPD number for any model anymore; both defer to the authenticated AI Studio
+  dashboard. Proceeding on the conservative ~20/day figure already observed on this project's
+  key, per user decision. Restructured `builder/schema.ts` for reliability without adding calls:
+  tightened the Gemini `responseSchema` with `minItems/maxItems/minimum/maximum/minLength` to
+  mirror the zod constraints (was looser than zod, letting the model emit e.g. wrong-length
+  distractors that zod would then reject wholesale), and replaced the all-or-nothing zod parse
+  with `parseUniversePayload()` — validates each question individually, drops bad ones, only
+  fails below `QUESTION_MIN` (20). Net effect: still 1 Gemini call per universe (rejected
+  splitting questions/tiers into 2 calls — that raises the guaranteed floor from 1 to 2
+  calls/universe, working against "minimize calls" even though each call would be more
+  reliable). Seed plan split into batches — see PLAN.md's updated seed-list section: batch 1
+  (Breaking Bad, BoJack Horseman, One Piece, The Office — 4 requests) ships with Task 5 today;
+  the other 11 trickle in ~4/day starting at Task 15. `tsc --noEmit` clean.
 - **2026-07-11** — Task 2 done. Real Neon credentials arrived misplaced in the git-tracked
   `.env.example` — moved them to `.env.local` (gitignored) and restored `.env.example` to
   placeholders before anything could be committed/pushed. Inspected the Neon DB and found it

@@ -248,7 +248,7 @@ Rule of engagement: after every completed task — update PROGRESS.md, `git comm
 | 2 | Database | Prisma schema above; Neon pooled+direct env wiring, adapter, `db.ts`; migration incl. pg_trgm; smoke query | 1h |
 | 3 | Gemini client | `gemini.ts` with structured-output helper, zod schemas for the universe payload, budget gate; prompt drafts | 1.5h |
 | 4 | Fandom scraper | resolve wiki → strategy-ladder quote scrape → cleaned candidates; timeouts + page budget; test against BoJack, Naruto, a thin wiki | 2.5h |
-| 5 | Build pipeline | scrape→LLM→persist with lock, fallback, fail states; `seed-universes.ts`; 3 universes seeded in dev DB | 2h |
+| 5 | Build pipeline | scrape→LLM→persist with lock, fallback, fail states; `seed-universes.ts`; batch-1 (4) universes seeded in dev DB | 2h |
 | 6 | API routes | universes search/create/status, results grade/create/get; fuzzy match; quiz selection (curve + exclusions) | 1.5h |
 | 7 | Home page | hero, search with instant-match suggestions, universe wall; the 60-second promise starts here | 2h |
 | 8 | Build theater | polling screen, rotating status lines, fail/retry state | 1h |
@@ -260,9 +260,12 @@ Rule of engagement: after every completed task — update PROGRESS.md, `git comm
 | 14 | Polish pass | motion timing, empty/error states, loading skeletons, a11y pass (reduced-motion honored), lighthouse sanity | 2h |
 | 15 | Ship | GitHub repo, Vercel project, env vars, prod migration, seed 15 launch fandoms, smoke test the full loop on prod | 1h |
 
-**Seed list (15):** BoJack Horseman, The Office, Naruto, Breaking Bad, Friends, One Piece,
-Harry Potter, Star Wars, Taylor Swift, Attack on Titan, Rick and Morty, Game of Thrones,
-Brooklyn Nine-Nine, Marvel Cinematic Universe, SpongeBob SquarePants.
+**Seed list (15) — split into batches to fit the ~20/day Gemini cap:**
+- **Batch 1 (Task 5, dev DB, today):** Breaking Bad, BoJack Horseman, One Piece, The Office —
+  4 requests, enough to build and playtest through Task 10.
+- **Batch 2+ (Task 15, spread across launch days, ~4/day):** Naruto, Friends, Harry Potter,
+  Star Wars, Taylor Swift, Attack on Titan, Rick and Morty, Game of Thrones,
+  Brooklyn Nine-Nine, Marvel Cinematic Universe, SpongeBob SquarePants.
 
 ## 6. Environment
 

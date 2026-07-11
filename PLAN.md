@@ -39,7 +39,7 @@ Home ── type fandom ──▸ fuzzy match against existing universes
 ### Zero-LLM play (success criterion #2)
 Everything a play session needs is generated once, at universe build time, in **one** Gemini
 structured-output call:
-- ~30 multiple-choice questions (quote, answer, 3 same-universe distractors, difficulty 1–3, context line for the reveal)
+- ~55 multiple-choice questions (quote, answer, 3 same-universe distractors, difficulty 1–3, context line for the reveal) — bank sized so fresh-set challenge chains get ~5 non-overlapping quizzes without a top-up job
 - 5 tier definitions (universe-flavored names + 3 roast/crown lines each)
 Play, grading, tiers, roasts, sharing, rematches: all Postgres reads. A second LLM call happens
 only when the wiki is too thin and quotes must be generated outright (universe marked `GENERATED`).

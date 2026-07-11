@@ -49,12 +49,23 @@ only when the wiki is too thin and quotes must be generated outright (universe m
    similarity — "bojack" and "BoJack Horseman" must hit the same row, never rebuild.
 2. **Lock**: insert `Universe` with `status=BUILDING` (unique slug). Concurrent requests find the
    row and poll instead of double-building. Stale `BUILDING` rows (>3 min) are retried.
-3. **Resolve wiki**: Fandom unified-search API → candidate `<wiki>.fandom.com`; verify via
-   `api.php?action=query&meta=siteinfo`.
-4. **Scrape via MediaWiki API only** (no HTML parsing): strategy ladder —
-   dedicated `*/Quotes` pages → quote sections on top character pages → category `Characters`
-   members for the cast list. Hard per-request timeout (5s), page budget (~25 fetches), wikitext
-   cleaned by a small parser (strip templates/links, keep `{{Quote|...}}` payloads).
+3. **Resolve wiki**: *(revised from the original plan — see PROGRESS.md Task 4 entry)* Fandom's
+   cross-wiki search is Cloudflare-gated and returns a bot-challenge page from server-side
+   requests on every route tried, both JSON (`/api/v1/...`) and HTML (`Special:Search`). Instead:
+   a slug-guess ladder (curated aliases for known-tricky names, then normalized
+   concatenation/hyphenation variants) tried against `<slug>.fandom.com/api.php?action=query&
+   meta=siteinfo`, first hit that passes a token-overlap relevance check against the returned
+   sitename wins. Individual wiki subdomains are not Cloudflare-gated and 404 cleanly on a bad
+   guess.
+4. **Scrape via MediaWiki API only** (no HTML parsing): per character, prefer a dedicated
+   `*/Quotes` subpage, else a `==Quotes==` section sliced from their main page. Whichever
+   wikitext is found, three extraction formats are tried in order — `{{Quote|...}}` templates,
+   `* "quote" - context` bullet lists, and `: '''Speaker''': line` script-style dialogue — since
+   real wikis use all three (verified against Breaking Bad, BoJack Horseman, One Piece, The
+   Office). `Category:Characters` members seed the candidate list; when a wiki files everyone
+   into subcategories instead of listing them directly (One Piece), one level of subcategory
+   fan-out is used. Hard per-request timeout (5s), page budget (~25 fetches, batched up to 50
+   titles/request).
 5. **LLM call**: scraped candidates + cast list → Gemini structured output (strict JSON schema):
    select/validate real quotes, build distractors, tag difficulty, write tier set. If scrape
    yielded <15 usable quotes → generation prompt ("only iconic lines you are highly confident

@@ -85,6 +85,15 @@ directly — it fires and polls `GET /api/universes/[slug]`.
 | 4 | Build latency kills first play | 15 pre-seeded fandoms, aggressive fuzzy match, build-theater screen with rotating universe-flavored status lines |
 | 5 | Bad question quality | Scraped quotes preferred as ground truth, same-universe plausible distractors required by prompt, difficulty curve, quoteHash dedupe, self-validation in the build call |
 
+### quoteSource honesty (user requirement, added after Task 4's Parks and Rec near-miss)
+`Universe.source` (SCRAPED/GENERATED/MIXED, already in the schema) must be visibly surfaced in
+the UI, not just stored — a majority-GENERATED universe should read as "AI-fabricated quotes,
+not verified canon" to the player before or as they play, not buried in a tooltip. Concretely:
+a badge on the universe wall (Task 7) and on the build-theater/quiz screen (Task 9) reflecting
+`source`. Exact copy/placement is a Task 7 design decision, but the requirement is load-bearing:
+this project's whole premise is "real quotes, real stakes" — a fan who gets roasted by a
+fabricated quote will (rightly) call it fake.
+
 ### Challenge semantics (fresh set)
 `/c/[resultId]` → "Arpit scored 7/10 on BoJack Horseman. Think you're the bigger stan?"
 → select 10 questions excluding the parent result's `questionIds` (fall back to allowing overlap
@@ -259,9 +268,9 @@ Rule of engagement: after every completed task — update PROGRESS.md, `git comm
 | 2 | Database | Prisma schema above; Neon pooled+direct env wiring, adapter, `db.ts`; migration incl. pg_trgm; smoke query | 1h |
 | 3 | Gemini client | `gemini.ts` with structured-output helper, zod schemas for the universe payload, budget gate; prompt drafts | 1.5h |
 | 4 | Fandom scraper | resolve wiki → strategy-ladder quote scrape → cleaned candidates; timeouts + page budget; test against BoJack, Naruto, a thin wiki | 2.5h |
-| 5 | Build pipeline | scrape→LLM→persist with lock, fallback, fail states; `seed-universes.ts`; batch-1 (4) universes seeded in dev DB | 2h |
+| 5 | Build pipeline | scrape→LLM→persist with lock, fallback, fail states; `seed-universes.ts`; batch-1 (3) universes seeded in dev DB | 2h |
 | 6 | API routes | universes search/create/status, results grade/create/get; fuzzy match; quiz selection (curve + exclusions) | 1.5h |
-| 7 | Home page | hero, search with instant-match suggestions, universe wall; the 60-second promise starts here | 2h |
+| 7 | Home page | hero, search with instant-match suggestions, universe wall **with a visible SCRAPED/GENERATED/MIXED badge per universe** — see quoteSource honesty note below; the 60-second promise starts here | 2h |
 | 8 | Build theater | polling screen, rotating status lines, fail/retry state | 1h |
 | 9 | Quiz UI | QuestionCard, TimerRing (15s), StreakMeter, reveal states, ROUND interstitials, mobile-first | 3h |
 | 10 | Result reveal | tier computation, name prompt, FighterCard with stat bars + tier belt + roast | 2h |
@@ -271,12 +280,25 @@ Rule of engagement: after every completed task — update PROGRESS.md, `git comm
 | 14 | Polish pass | motion timing, empty/error states, loading skeletons, a11y pass (reduced-motion honored), lighthouse sanity | 2h |
 | 15 | Ship | GitHub repo, Vercel project, env vars, prod migration, seed 15 launch fandoms, smoke test the full loop on prod | 1h |
 
-**Seed list (15) — split into batches to fit the ~20/day Gemini cap:**
-- **Batch 1 (Task 5, dev DB, today):** Breaking Bad, BoJack Horseman, One Piece, The Office —
-  4 requests, enough to build and playtest through Task 10.
-- **Batch 2+ (Task 15, spread across launch days, ~4/day):** Naruto, Friends, Harry Potter,
-  Star Wars, Taylor Swift, Attack on Titan, Rick and Morty, Game of Thrones,
-  Brooklyn Nine-Nine, Marvel Cinematic Universe, SpongeBob SquarePants.
+**Seed list — split into batches to fit the ~20/day Gemini cap, and quality-gated: a
+non-trivial fraction of Fandom wikis don't curate structured quotes for their actual main
+cast even when the scraper finds *something* (see PROGRESS.md Task 4 follow-up — One Piece
+has zero `/Quotes` pages wiki-wide; Parks and Recreation scraped 51 quotes that were 100%
+one-off gag characters, zero main cast, and would have shipped as a false positive on quote
+count alone). Every batch-1 candidate was verified by checking speaker distribution, not just
+non-zero quote count, before being trusted.**
+- **Batch 1 (Task 5, dev DB, today) — 3 fandoms, all verified with real main-cast quotes:**
+  Breaking Bad (110 quotes), BoJack Horseman (71), The Office (50, after fixing a scraper
+  ordering bug — see PROGRESS.md).
+- **Dropped from the seed list:** One Piece (genuinely no structured quotes anywhere on its
+  wiki — confirmed via wiki-wide search, not a scraper gap).
+- **4th batch-1 slot and the rest of the original 15:** still open. Tested and rejected as too
+  thin or non-lead-representative: Naruto, Friends, Rick and Morty, Attack on Titan,
+  Brooklyn Nine-Nine, Harry Potter, SpongeBob SquarePants, Marvel Cinematic Universe, Star Wars,
+  Game of Thrones, Seinfeld, The Simpsons, Taylor Swift, Parks and Recreation. Needs either more
+  candidate search (large franchises with dedicated fan-quote-page cultures — sitcoms and anime
+  with `*/Quotes` conventions have scraped best so far) or accepting MIXED-source universes with
+  the honest UI labeling below.
 
 ## 6. Environment
 

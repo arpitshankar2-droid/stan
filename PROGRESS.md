@@ -9,7 +9,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 2. Database — Prisma schema, Neon wiring (pooled + direct), pg_trgm migration
 - [x] 3. Gemini client — structured-output helper, zod schemas, budget gate, prompts
 - [x] 4. Fandom scraper — wiki resolve, strategy-ladder quote scrape, wikitext cleaner
-- [ ] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (batch-1: 4 dev universes)
+- [ ] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (batch-1: 3 dev universes)
 - [ ] 6. API routes — universes search/create/status, results grade/get, quiz selection
 - [ ] 7. Home page — hero, search + suggestions, universe wall
 - [ ] 8. Build theater — polling screen, rotating status lines, fail/retry
@@ -23,6 +23,46 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-11** — Pre-Task-5 quality investigation, prompted by the user flagging that The
+  Office (3) and One Piece (0) yields would mean fabricated quotes shipping as if real — "the
+  exact failure mode this whole design was meant to avoid." Investigated both rather than
+  seeding on faith:
+  - **The Office: real, fixable scraper bug.** Confirmed the main cast (Michael Scott index
+    190, Pam 212, Dwight 88...) is in `Category:Characters` and genuinely has no dedicated
+    `/Quotes` subpages, so every character depended on the main-page-fallback rung — which was
+    capped at 60 in arbitrary category order, excluding the whole main cast. Raised the cap.
+    Result: 3 → 50 quotes, now properly led by Michael Scott, Kelly Kapoor, Stanley, Oscar.
+  - **One Piece: genuinely unscrapable, confirmed not a bug.** Wiki-wide search for `intitle:
+    /Quotes` in namespace 0 returns zero results across the entire wiki. Neither Luffy's nor
+    Zoro's main page has a "Quotes" section in any form. This wiki does not curate structured
+    quotes for its cast — no scraper strategy fixes a convention that doesn't exist.
+  - **Fixed 3 general resolver bugs** surfaced while hunting for a replacement (all in
+    `src/lib/fandom/resolve.ts`, benefit every future build, not just this batch): (1)
+    `isRelevant()` only did exact token-set matching, so "naruto" never matched sitename
+    "Narutopedia" — added a substring check; (2) a curated alias key (`"brooklyn nine-nine"`)
+    had a hyphen that `normalize()` strips to a space before lookup, so the alias silently
+    never fired; (3) curated aliases were still being run through the relevance check, which by
+    design rejects stylized wiki brand names ("Wookieepedia" for Star Wars, "Wiki of Westeros"
+    for Game of Thrones) — curated aliases now bypass relevance entirely, since a curated
+    mapping is trusted by definition.
+  - **Replacement search: 14 candidates tested, none cleared the bar.** Most important finding:
+    Parks and Recreation scraped 51 quotes — looked like a clean win on count alone — but every
+    single quote came from one-off "public forum" gag characters; Leslie Knope's page has no
+    Quotes section and zero main-cast lines appeared anywhere in the sample. Checking speaker
+    distribution (not just count) caught this before it shipped as a false positive; PLAN.md's
+    seed-list note now calls this out explicitly as the failure mode to keep checking for. Also
+    tested and rejected as too thin: Naruto(2), Friends(1), Rick and Morty(10), Attack on
+    Titan(0), Brooklyn 99(0), Harry Potter(0, different category-naming convention entirely),
+    SpongeBob(0), MCU(0), Star Wars(0), Game of Thrones(0), Seinfeld(11, side-character-weighted),
+    The Simpsons(0), Taylor Swift(0).
+  - **User decision:** ship batch 1 with the 3 verified-strong fandoms now (Breaking Bad,
+    BoJack Horseman, The Office) rather than block on finding a 4th or accepting a thin one.
+    One Piece dropped from the seed list entirely.
+  - **New requirement added to PLAN.md:** `Universe.source` must be visibly surfaced in the UI
+    (badge on the universe wall + build/quiz screens) — a majority-GENERATED universe should
+    read as "AI-fabricated, not verified canon" to the player, not be indistinguishable from a
+    scraped one. Applies to Tasks 7 and 9.
+  - `tsc --noEmit` clean. All debug/investigation scripts removed before commit.
 - **2026-07-11** — Task 4 done, with a real design pivot from PLAN.md. Probed Fandom's actual
   APIs before writing code (per the file-tree audit the user requested mid-task, confirmed
   nothing else had been dropped and the MCP scope is still one server/6 tools per Task 13).

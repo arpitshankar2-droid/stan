@@ -12,7 +12,13 @@ const USER_AGENT = "stan-quiz-app/0.1 (contact: arpitshankar2@gmail.com)";
 const CATEGORY_MEMBER_CEILING = 400;
 const PROMPT_CHARACTER_CAP = 80;
 const TITLE_BATCH_SIZE = 50; // MediaWiki's per-request cap for titles=
-const MAIN_PAGE_FALLBACK_CAP = 60; // characters without a dedicated Quotes page we'll still check
+// Some wikis (The Office/Dunderpedia) have zero dedicated /Quotes subpages at
+// all, meaning every character relies on this fallback rung — capping it
+// small silently excludes whoever the category listing happens to order
+// last (Michael Scott landed at index 190/301). Batching keeps the cost of
+// checking everyone affordable, so this now matches the character ceiling;
+// the request Budget is the real backstop against runaway cost.
+const MAIN_PAGE_FALLBACK_CAP = CATEGORY_MEMBER_CEILING;
 
 const CHARACTER_CATEGORY_CANDIDATES = ["Category:Characters", "Category:Main Characters"];
 const SUBCATEGORY_FANOUT = 6; // when Characters has no direct members, only subcats

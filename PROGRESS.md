@@ -6,8 +6,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 - [x] 0. Repo bootstrap — git init, PLAN.md, PROGRESS.md, first commit
 - [x] 1. Scaffold — Next 15 + TS + Tailwind + shadcn + Framer Motion, Neon Arena tokens
-- [~] 2. Database — Prisma schema, Neon wiring (pooled + direct), pg_trgm migration
-      *(code done + typechecked; migration + smoke query still blocked — no real .env yet)*
+- [x] 2. Database — Prisma schema, Neon wiring (pooled + direct), pg_trgm migration
 - [x] 3. Gemini client — structured-output helper, zod schemas, budget gate, prompts
 - [ ] 4. Fandom scraper — wiki resolve, strategy-ladder quote scrape, wikitext cleaner
 - [ ] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (3 dev universes)
@@ -24,6 +23,19 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-11** — Task 2 done. Real Neon credentials arrived misplaced in the git-tracked
+  `.env.example` — moved them to `.env.local` (gitignored) and restored `.env.example` to
+  placeholders before anything could be committed/pushed. Inspected the Neon DB and found it
+  wasn't empty: a previous build's schema (7 tables — `Universe/Question/Quiz/Attempt/Flag/
+  RateLimit` with different columns, 11 Universe rows but only 3 `ready` with 30 questions each:
+  Breaking Bad, One Piece, BoJack Horseman). Confirmed with the user, then dropped all 7 old
+  tables and applied PLAN.md's schema via `prisma migrate dev` (hand-added the `pg_trgm`
+  extension + GIN trigram index on `Universe.name` to the generated migration). Note for later
+  schema changes: `migrate dev`'s post-apply drift check hangs waiting on stdin in this
+  environment because the trgm index isn't declared in `schema.prisma` — future migrations
+  should use `migrate dev --create-only` then `migrate deploy` to stay non-interactive.
+  Verified: 4 tables (`Question/Result/Universe/_prisma_migrations`), all expected indexes,
+  `pg_trgm` installed, `prisma migrate status` reports up to date, Prisma client regenerated.
 - **2026-07-11** — Reconciled checkboxes above with git history (Task 3 had landed but wasn't
   ticked). Confirmed Task 2's migration is still blocked: no `.env` with real Neon credentials
   exists yet, so `prisma migrate dev` and the pg_trgm smoke query haven't run.

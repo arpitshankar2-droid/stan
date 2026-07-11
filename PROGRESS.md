@@ -7,6 +7,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 0. Repo bootstrap — git init, PLAN.md, PROGRESS.md, first commit
 - [x] 1. Scaffold — Next 15 + TS + Tailwind + shadcn + Framer Motion, Neon Arena tokens
 - [ ] 2. Database — Prisma schema, Neon wiring (pooled + direct), pg_trgm migration
+      *(code done + typechecked; migration + smoke query blocked on .env — needs Neon strings)*
 - [ ] 3. Gemini client — structured-output helper, zod schemas, budget gate, prompts
 - [ ] 4. Fandom scraper — wiki resolve, strategy-ladder quote scrape, wikitext cleaner
 - [ ] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (3 dev universes)

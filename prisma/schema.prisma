@@ -1,0 +1,72 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // Neon pooled (-pooler) — runtime
+  directUrl = env("DIRECT_URL") // Neon direct — migrations only
+}
+
+enum UniverseStatus {
+  BUILDING
+  READY
+  FAILED
+}
+
+enum QuoteSource {
+  SCRAPED
+  GENERATED
+  MIXED
+}
+
+model Universe {
+  id         String         @id @default(cuid())
+  slug       String         @unique
+  name       String
+  aliases    String[]       @default([])
+  status     UniverseStatus @default(BUILDING)
+  source     QuoteSource?
+  characters Json?
+  tiers      Json?
+  failReason String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  questions  Question[]
+  results    Result[]
+}
+
+model Question {
+  id         String      @id @default(cuid())
+  universeId String
+  universe   Universe    @relation(fields: [universeId], references: [id], onDelete: Cascade)
+  quote      String
+  answer     String
+  options    String[]
+  difficulty Int
+  source     QuoteSource
+  context    String?
+  quoteHash  String
+
+  @@unique([universeId, quoteHash])
+  @@index([universeId, difficulty])
+}
+
+model Result {
+  id          String   @id @default(cuid())
+  universeId  String
+  universe    Universe @relation(fields: [universeId], references: [id], onDelete: Cascade)
+  name        String?
+  score       Int
+  questionIds String[]
+  answers     Json
+  tier        String
+  roast       String
+  bestStreak  Int      @default(0)
+  challengeOf String?
+  createdAt   DateTime @default(now())
+
+  @@index([universeId])
+  @@index([challengeOf])
+}

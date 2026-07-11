@@ -2,10 +2,10 @@
 
 Rule: every completed task gets a checkbox flip here **and a git commit**. No batching.
 
-## Status: awaiting plan approval
+## Status: in progress — plan approved 2026-07-11
 
 - [x] 0. Repo bootstrap — git init, PLAN.md, PROGRESS.md, first commit
-- [ ] 1. Scaffold — Next 15 + TS + Tailwind + shadcn + Framer Motion, Neon Arena tokens
+- [x] 1. Scaffold — Next 15 + TS + Tailwind + shadcn + Framer Motion, Neon Arena tokens
 - [ ] 2. Database — Prisma schema, Neon wiring (pooled + direct), pg_trgm migration
 - [ ] 3. Gemini client — structured-output helper, zod schemas, budget gate, prompts
 - [ ] 4. Fandom scraper — wiki resolve, strategy-ladder quote scrape, wikitext cleaner
@@ -23,6 +23,12 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-11** — Task 1 done. Plan approved; bank bumped to ~55 questions/universe.
+  Scaffolded with create-next-app (came down as Next 16 — pinned to next@15.5.20 per hard
+  constraint). Tailwind v4, shadcn (radix/nova preset, 7 primitives), framer-motion 12.
+  Neon Arena tokens in globals.css (violet/cyan palette, Archivo variable font with wdth axis
+  for the condensed-italic display face, grain overlay, slash/gradient/glow utilities).
+  Placeholder home page on-theme. `npm run build` clean.
 - **2026-07-11** — Kickoff. Failure-mode analysis done, design direction picked (B — Neon Arena),
   challenge semantics decided (fresh set per challenger), roast tone set (sharp but affectionate).
   PLAN.md written. Awaiting approval to start Task 1.

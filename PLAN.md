@@ -95,10 +95,21 @@ Tools: `search_universes`, `build_universe`, `get_universe_status`, `start_quiz`
 `grade_quiz`, `get_result`. Docs + Desktop config snippet in `docs/mcp.md`.
 
 ### Gemini budget math
-Free-tier flash-lite ≈ 1,000 requests/day. Cost per universe: 1 request (2 if thin-wiki
-fallback). Seeding 15 universes ≈ 15–30 requests. Steady state: only novel fandom searches
-spend requests; play spends zero. A `createdAt`-based daily count gates builds at a
-configurable ceiling (default 200/day) before Google's cap can bite.
+Free-tier daily cap is not reliably published (Google's docs defer to the AI Studio dashboard;
+third-party sources disagree). Treat it as **~20 requests/day** — the number actually observed
+on this project's key — until proven otherwise.
+
+Cost per universe: **1 request typically** (the thin-wiki decision picks a prompt *before*
+calling Gemini, based on scrape yield — it does not add a call). **2 requests worst case**,
+from `generateStructured()`'s single retry on malformed/truncated JSON — a real risk here, not
+theoretical, since one response must hold ~55 questions + 5 tiers from a lite model.
+
+Seeding 15 universes: **15 requests best case, up to 30 worst case** — at or over the ~20/day
+cap in a single run, with zero room left for that day's pipeline dev/testing or any real
+user-triggered build. `DAILY_BUILD_CEILING` (currently `15` in `.env.local`) gates Universe rows
+created, not raw Gemini requests, so it does not prevent the worst-case overage.
+**Seeding will need to span multiple days** (see PROGRESS.md for the running plan) unless the
+per-universe request count is reduced further.
 
 ---
 

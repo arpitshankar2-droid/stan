@@ -11,7 +11,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 4. Fandom scraper — wiki resolve, strategy-ladder quote scrape, wikitext cleaner
 - [x] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (batch-1: 3 dev universes)
 - [x] 6. API routes — universes search/create/status, results grade/get, quiz selection
-- [ ] 7. Home page — hero, search + suggestions, universe wall
+- [x] 7. Home page — hero, search + suggestions, universe wall
 - [ ] 8. Build theater — polling screen, rotating status lines, fail/retry
 - [ ] 9. Quiz UI — QuestionCard, 15s TimerRing, StreakMeter, reveals, interstitials
 - [ ] 10. Result reveal — tiers, name prompt, FighterCard with roast
@@ -23,6 +23,38 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Task 7 done. `src/lib/source-badge.ts` (shared `SCRAPED`→"Verified
+  Quotes"/cyan, `MIXED`→"Mostly Verified"/violet, `GENERATED`→"AI-Generated"/gold label+style
+  map, reused as-is on the quiz screen in Task 9 per the quoteSource honesty requirement — a
+  GENERATED universe is styled as a caution, not a neutral third badge). `UniverseWall.tsx`
+  (server component, typography-first cards — no icons/emoji, the fandom name *is* the visual
+  identity, rendered large in the gradient display face — with the source badge always visible
+  under the name, never hidden behind a tooltip). `FandomSearch.tsx` (client component:
+  debounced (250ms) hits to `GET /api/universes?q=`, dropdown filtered to `READY` matches only
+  so a stale `BUILDING`/`FAILED` row is never offered as if playable, a "Build "<query>"" row
+  when no exact match exists, `POST /api/universes` → redirect to `/play/[slug]` on success,
+  inline error text — not a dead-end redirect — on 429/failed). `page.tsx` rewritten as an async
+  Server Component querying `db.universe.findMany` directly for the wall (no self-fetch over
+  HTTP). `tsc --noEmit` clean (repo's `eslint.config.mjs` is separately broken — points at
+  `eslint-config-next/core-web-vitals` instead of the `.js`-suffixed export path shipped by the
+  installed version; pre-existing, unrelated to this task, not fixed here).
+  Live-tested against the dev server and the real seeded DB (not just typechecked):
+  - SSR output for `/` confirmed correct for all 3 seeded universes — Breaking Bad and The
+    Office both render "Mostly Verified" (their true `MIXED` source), BoJack Horseman renders
+    "Verified Quotes" (`SCRAPED`) — badges aren't just present, they match the real DB value.
+  - **`npm run build` caught a real bug dev mode hid**: Next prerendered `/` as static
+    (`○`) content. Since the wall reads live DB state, every visitor would have gotten the
+    same frozen snapshot from build time until the next deploy — a newly-built fandom would
+    never appear without a redeploy. Fixed with `export const dynamic = "force-dynamic"`;
+    rebuilt and confirmed `/` now shows `ƒ` (server-rendered per request).
+  - `/play/breaking-bad` correctly 404s (that route is Task 8/9, not built yet) with no crash.
+  - **Known gap, called out rather than papered over**: no browser automation tool (Playwright/
+    Puppeteer) is available in this environment, so the interactive search flow — typing,
+    the debounced dropdown appearing, keyboard/click selection, the build-CTA POST round trip —
+    was verified by code review and by confirming its dependencies (the `/api/universes` GET/
+    POST routes) independently in Task 6, not by actually driving it in a browser. Flagging
+    this explicitly per the "say so, don't claim success" rule rather than asserting the click
+    path works.
 - **2026-07-12** — Task 6 done. `src/lib/http.ts` (`apiError` helper), `src/lib/quiz/select.ts`
   (`selectQuizQuestions`: 3/4/3 easy/mid/hard curve, excluded-id set only used as a last-resort
   fallback so challenge quizzes get a genuinely fresh set when the bank supports it), `grade.ts`

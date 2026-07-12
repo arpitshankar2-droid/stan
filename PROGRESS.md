@@ -24,6 +24,24 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Hinglish roast variants, requested post-launch. Clarified first: there's no
+  static "tiers.ts roast copy" file — tier *names* and their English roast lines are generated
+  per-fandom by Gemini at build time and stored in `Universe.tiers` (JSON), and the request's own
+  example tier names (Touch Grass, Casual Enjoyer, True Fan, Certified Stan) are generic, which
+  would conflict with the established, deliberate rule that tier names must be fandom-specific
+  ("Novice/Expert = failure" per `prompts.ts`). Resolved by keeping each fandom's own generated
+  tier name untouched and adding the Hinglish lines as a separate, generic, tier-*rank*-indexed
+  pool (`src/lib/quiz/hinglish-roasts.ts`, 0=worst to 4=best, matching `TIER_FLOORS`) that
+  `pickTier()` mixes into the same random selection as the fandom's English lines. No Gemini
+  call, no rebuild, no schema change — applies to every existing universe immediately. Two lines
+  per rank used verbatim from the request where given; the un-specified middle rank and the
+  remaining slots written to match the requested tone (escalating from mock to reverence).
+  Live-verified two ways: ran `pickTier` directly against BoJack's real stored tiers across all 5
+  score bands and confirmed exactly 3 English + 3 Hinglish lines appear in the pool at each rank;
+  then actually played 6 real quizzes through the live local API
+  (`POST /api/results` → `GET /api/results/[id]`) and confirmed real Hinglish roasts ("Bhai
+  Google karke aaya hai kya?", "Pehle show dekh, phir quiz khelna") come back from the actual
+  submission pipeline, not just the isolated function.
 - **2026-07-12** — Task 15 done. Repositioned the Giphy reaction GIF per direct feedback: it was
   sitting past the action buttons at the very bottom, landing after the player had already
   mentally shifted into "share or leave" mode. Moved to right after the roast line, before the

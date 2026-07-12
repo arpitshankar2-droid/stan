@@ -15,7 +15,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 8. Build theater — polling screen, rotating status lines, fail/retry
 - [x] 9. Quiz UI — QuestionCard, 15s TimerRing, StreakMeter, reveals, interstitials
 - [x] 10. Result reveal — tiers, name prompt, FighterCard with roast
-- [ ] 11. OG image — next/og card for link previews
+- [x] 11. OG image — next/og card for link previews
 - [ ] 12. Challenge flow — /c/[id], fresh-set quiz, VS compare
 - [ ] 13. MCP server — /api/mcp via mcp-handler, 6 tools, docs/mcp.md
 - [ ] 14. Polish — motion, empty/error states, a11y, reduced-motion
@@ -23,6 +23,56 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Process note: killed the dev server after verifying each of Tasks 8, 9, and
+  10, and the user hit "localhost isn't working" all three times as a result. Stopped doing that
+  — leaving it running by default from here on, only stopping it for the specific case that
+  actually requires it (a clean `next build` — `next dev` and `next build` fight over the same
+  `.next` directory and produce spurious `Cannot find module ./vendor-chunks/...` errors if run
+  concurrently; confirmed this is what happened, not a real code bug, by clearing `.next` and
+  rebuilding clean).
+- **2026-07-12** — Task 11 done. `next/og` card at `src/app/r/[id]/opengraph-image.tsx`.
+  - Checked real constraints against the installed package before designing, given this is
+    exactly the kind of thing that bites if assumed: `next/dist/compiled/@vercel/og`'s type defs
+    confirm standard OG dimensions default to 1200×630 (landscape) — genuinely different from
+    FighterCard's 1080×1350 (portrait), so "mirrors FighterCard" means same content and visual
+    language reflowed for a wide format, not identical pixels.
+  - **Fonts**: Satori (the renderer) doesn't read the page's actual CSS or `next/font` — needs
+    raw font bytes via a `fonts` option, and doesn't reliably parse the woff2 files `next/font`
+    already serves to browsers. Verified directly (not assumed) that a plain server-side `fetch`
+    to Google's CSS API — no user-agent spoofing — returns a `format('truetype')` URL; downloaded
+    it and checked the actual magic bytes (`00 01 00 00`, valid sfnt/TrueType) before trusting it.
+    `src/lib/og-font.ts` fetches Archivo italic-800 and normal-400 as TTF at request time, with a
+    null-safe fallback (a network hiccup here degrades to Satori's default font rather than
+    breaking the whole image).
+  - **Real bug caught by actually calling the route**, not just typechecking: `width:
+    "fit-content"` on the tier belt and badge spans 500'd with `Invalid value fit-content for
+    setWidth` — Satori's Yoga layout engine doesn't support that CSS keyword, unlike a real
+    browser. Fixed with `alignSelf: "flex-start"` on a flex-column parent (equivalent effect,
+    supported property).
+  - **Refactored to remove real duplication this surfaced**: the page and the OG image both need
+    the same DB reads and stat computation (accuracy, avg speed, the honest scrapedRatio badge).
+    Pulled that into `src/lib/result-data.ts`'s `getResultViewData()`, wrapped in React's
+    `cache()` so `generateMetadata` and the page component — both invoked for the same
+    navigation — share one DB round trip instead of two. `source-badge.ts` gained a `hex` field
+    alongside `className`, since Satori can't apply Tailwind classes or read CSS custom
+    properties — parsing a hex color out of a Tailwind class string would have been fragile.
+  - **Added `generateMetadata`** to `/r/[id]/page.tsx` — this wasn't explicitly asked for, but
+    checking the actual rendered `<head>` showed `twitter:title`/`og:description` were still the
+    generic site-wide copy while the image itself was already result-specific, which is half of
+    what a link preview needs. Now generates the exact copy style PLAN.md specifies ("Arpit
+    scored 7/10 on BoJack Horseman. Think you're the bigger stan?").
+  - **Live-verified by actually looking at the generated images**, not just checking HTTP 200 —
+    this is the one visual task this session where that's genuinely possible, since `Read` can
+    view a static PNG directly, unlike a live browser page. Confirmed: real PNG magic bytes,
+    exact 1200×630 dimensions, the Archivo italic font rendering correctly (not a fallback font),
+    per-fandom palette correctly varying (BoJack pink→purple vs. Naruto orange→red), the honest
+    badge correctly varying color/label by real data (cyan "Verified Quotes" vs. gold
+    "AI-Generated", not hardcoded), the anonymous "A Challenger" fallback, a longer three-line
+    tier+roast combination wrapping without overflow, and the not-found fallback rendering a
+    plain "STAN" mark instead of crashing. Also confirmed the `<head>` actually wires
+    `og:image`/`twitter:image` meta tags pointing at the generated route with correct
+    width/height — the image existing in isolation wouldn't be enough for WhatsApp/Twitter to
+    find it.
 - **2026-07-12** — Task 10 done. Result reveal at `/r/[id]`, plus the name prompt that closes a
   gap left open since Task 9.
   - **Name prompt**: PLAN.md says the player name is "optional, asked at reveal" — that reveal

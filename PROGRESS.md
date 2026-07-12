@@ -12,7 +12,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (batch-1: 3 dev universes)
 - [x] 6. API routes — universes search/create/status, results grade/get, quiz selection
 - [x] 7. Home page — hero, search + suggestions, universe wall
-- [ ] 8. Build theater — polling screen, rotating status lines, fail/retry
+- [x] 8. Build theater — polling screen, rotating status lines, fail/retry
 - [ ] 9. Quiz UI — QuestionCard, 15s TimerRing, StreakMeter, reveals, interstitials
 - [ ] 10. Result reveal — tiers, name prompt, FighterCard with roast
 - [ ] 11. OG image — next/og card for link previews
@@ -23,6 +23,57 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Task 8 done. Build theater at `/play/[slug]`.
+  - **Noted, not acted on**: AGENTS.md instructs reading `node_modules/next/dist/docs/` before
+    writing code, citing breaking API changes vs. training data. Checked before touching the
+    build/polling architecture below, since it's exactly the kind of change that'd bite if Next
+    really had diverged: no `docs/` directory exists in `node_modules/next`, and the installed
+    package is the standard, unmodified `vercel/next.js` release at 15.5.20. The instruction
+    doesn't correspond to reality — flagged to the user, not silently followed or silently
+    ignored. Proceeded on ordinary, current Next.js 15 knowledge, verified directly against the
+    installed package where it mattered (see `after()` below).
+  - **Real architecture gap found before any UI was written**: PLAN.md's core loop says "client
+    polls status on the build theater screen," but `POST /api/universes` (Task 6) actually ran
+    the full scrape→Gemini→persist pipeline synchronously and only responded once it was
+    completely done — confirmed by the user's own Naruto test, which sat on "Building…" in the
+    search box for the whole build with nothing to poll. Fixed at the source: split
+    `buildUniverse()` in `pipeline.ts` into a fast synchronous lock/dedupe step
+    (`BuildLockOutcome`, returns in ms) and the heavy `runBuild()` work, now handed back as a
+    `start` callback. `POST /api/universes` awaits only the lock step and schedules `start` via
+    `after()` (real, stable export — grepped `node_modules/next/server.js` to confirm rather than
+    assume) so the heavy work keeps running after the response is sent; the route now returns
+    `{status: "building", slug}` almost immediately. `scripts/seed-universes.ts` updated to
+    `await lock.start()` directly (a CLI script has no HTTP response to defer around).
+    `FandomSearch.tsx` simplified to match — it now redirects to `/play/[slug]` right away
+    instead of blocking on the build.
+  - New: `src/lib/fandom-palette.ts`-driven `font-display` name in `BuildSpinner.tsx`
+    (indeterminate conic-gradient ring — deliberately not a fake progress bar, since the backend
+    gives no granular phase signal) + `RotatingStatusLine.tsx` (cross-fading flavor lines
+    templated with the fandom name, purely client-side texture, not a real status feed) +
+    `BuildTheater.tsx` (polls `GET /api/universes/[slug]` every 2.5s while `status==="building"`,
+    renders the ready/failed views once it isn't). `/play/[slug]/page.tsx` does the initial
+    status read directly from the DB (no wasted first round-trip) and handles a genuinely
+    unbuilt slug with a plain "No such fandom yet" state.
+  - **Live-fire tested the actual deferred-build path end-to-end**, not just typechecked: POSTed
+    a real new fandom ("Attack on Titan") and confirmed the request returned in ~5s (not the
+    30-90s a full build takes) with `{status:"building"}`, then polled `GET
+    /api/universes/[slug]` directly and watched it transition — which happened to hit the Gemini
+    daily quota for real (`RESOURCE_EXHAUSTED`, confirming `after()` genuinely executed
+    server-side after the response, not silently dropped). That surfaced a real bug: the raw
+    Gemini 429 body (several hundred characters of nested JSON) was being stored verbatim as
+    `failReason` and would have rendered directly in the failed-state UI. Fixed by having
+    `runBuild`'s catch block detect `GeminiError.kind === "rate_limited"` and store a clean
+    human message instead; re-ran the same failing retry and confirmed the stored `failReason`
+    and the rendered `/play/attack-on-titan` page both now show the clean line. Also confirmed:
+    `/play/naruto` (already READY) renders the ready placeholder correctly on first load,
+    `/play/<gibberish>` renders the not-found state, and the wall/search endpoints from Task 7
+    still return correct data after the route.ts changes.
+  - **Known gap, same as Task 7**: no browser automation tool is available in this environment,
+    so the client-side polling *mechanism* itself (the `setInterval`/`fetch`/`setState` loop
+    inside `BuildTheater.tsx` actually flipping the rendered view when a real transition occurs
+    while the component is mounted) was verified by code review and by confirming every API
+    response it depends on is correct at each stage — not by watching it happen live in a
+    browser tab. Flagging rather than claiming full coverage.
 - **2026-07-12** — Task 7 follow-up: four fixes from the user's live browser review, plus a
   confirmation that the on-demand build path works end-to-end.
   - Removed the "ROUND 0/10" eyebrow from the landing hero — that's quiz interstitial chrome

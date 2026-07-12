@@ -13,22 +13,34 @@ async function main() {
   for (const name of targets) {
     process.stdout.write(`\nBuilding "${name}"... `);
     const t0 = Date.now();
-    const outcome = await buildUniverse(name);
-    const ms = Date.now() - t0;
+    // buildUniverse only locks the row and hands back the heavy work as
+    // `start` — the API route defers that via `after()`, but this script has
+    // no HTTP response to defer around, so it just awaits it directly.
+    const lock = await buildUniverse(name);
 
-    if (outcome.status === "ready") {
-      const universe = await db.universe.findUniqueOrThrow({
-        where: { id: outcome.universeId },
-        include: { _count: { select: { questions: true } } },
-      });
+    if (lock.status === "already_ready") {
+      console.log(`already READY — slug=${lock.slug}`);
+      continue;
+    }
+    if (!lock.start) {
+      console.log(`already building elsewhere — slug=${lock.slug}`);
+      continue;
+    }
+
+    await lock.start();
+    const ms = Date.now() - t0;
+    const universe = await db.universe.findUniqueOrThrow({
+      where: { id: lock.universeId },
+      include: { _count: { select: { questions: true } } },
+    });
+
+    if (universe.status === "READY") {
       console.log(
         `READY in ${ms}ms — slug=${universe.slug}, source=${universe.source}, ` +
           `questions=${universe._count.questions}`,
       );
-    } else if (outcome.status === "failed") {
-      console.log(`FAILED: ${outcome.reason}`);
     } else {
-      console.log(outcome.status);
+      console.log(`FAILED: ${universe.failReason}`);
     }
   }
 

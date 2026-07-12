@@ -61,6 +61,10 @@ export function FandomSearch() {
   }, []);
 
   async function startBuild(name: string) {
+    // POST only claims the build lock — it resolves fast either way ("ready"
+    // on a dedupe hit, "building" once the row is locked) and the actual
+    // build runs server-side after the response. /play/[slug] (the build
+    // theater) is where the real wait — and any failure — surfaces.
     setBuilding(true);
     setError(null);
     try {
@@ -72,10 +76,6 @@ export function FandomSearch() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
-        return;
-      }
-      if (data.status === "failed") {
-        setError(data.reason ?? `Couldn't build "${name}" — try another fandom.`);
         return;
       }
       router.push(`/play/${data.slug}`);
@@ -167,7 +167,7 @@ export function FandomSearch() {
             >
               <span className="font-display text-lg">Build &quot;{trimmed}&quot;</span>
               <span className="text-xs text-muted-foreground">
-                {building ? "Building…" : "→"}
+                {building ? "Starting…" : "→"}
               </span>
             </button>
           )}
@@ -176,9 +176,7 @@ export function FandomSearch() {
 
       {error && <p className="mt-3 text-center text-sm text-arena-danger">{error}</p>}
       {building && !error && (
-        <p className="mt-3 text-center text-sm text-muted-foreground">
-          Building your arena — this can take a minute…
-        </p>
+        <p className="mt-3 text-center text-sm text-muted-foreground">Starting…</p>
       )}
     </div>
   );

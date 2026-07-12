@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { db } from "@/lib/db";
 import { resolveWiki } from "@/lib/fandom/resolve";
 import { scrapeQuotes } from "@/lib/fandom/scrape";
-import { generateStructured } from "@/lib/gemini";
+import { generateStructured, GeminiError } from "@/lib/gemini";
 import { universeResponseSchema, parseUniversePayload } from "@/lib/builder/schema";
 import { buildFromScrapedPrompt, buildGeneratedPrompt } from "@/lib/builder/prompts";
 import { buildsRemainingToday } from "@/lib/builder/budget";
@@ -62,6 +62,18 @@ export interface BuildOutcome {
   reason?: string;
 }
 
+/**
+ * What the caller (the API route) gets back from `buildUniverse`. `already_ready`
+ * and `building`-on-someone-else's-lock resolve instantly with nothing further to
+ * do. A caller that just claimed or reclaimed the lock gets a `start` callback —
+ * the actual scrape→LLM→persist work — which the route defers via `after()` so
+ * the HTTP response returns immediately and the client polls status instead of
+ * blocking on it.
+ */
+export type BuildLockOutcome =
+  | { status: "already_ready"; universeId: string; slug: string }
+  | { status: "building"; universeId: string; slug: string; start?: () => Promise<void> };
+
 /** slug -> aliases -> pg_trgm name similarity, in that order of confidence. */
 async function findExistingUniverse(name: string, slug: string): Promise<Universe | null> {
   const bySlug = await db.universe.findUnique({ where: { slug } });
@@ -82,11 +94,14 @@ async function findExistingUniverse(name: string, slug: string): Promise<Univers
 }
 
 /**
- * Entry point: normalize + match an existing universe, or lock a new row
- * and build it. Concurrent requests for the same fandom find the BUILDING
- * row (unique slug) and poll rather than double-spending a Gemini call.
+ * Entry point: normalize + match an existing universe, or lock a new row for
+ * building. Concurrent requests for the same fandom find the BUILDING row
+ * (unique slug) and poll rather than double-spending a Gemini call. This is
+ * intentionally fast (a handful of indexed queries, no scrape/LLM work) so the
+ * API route can respond immediately and defer the heavy work — see
+ * `BuildLockOutcome`.
  */
-export async function buildUniverse(query: string): Promise<BuildOutcome> {
+export async function buildUniverse(query: string): Promise<BuildLockOutcome> {
   const slug = slugify(query);
   if (!slug) throw new Error("query produced an empty slug");
 
@@ -100,9 +115,15 @@ export async function buildUniverse(query: string): Promise<BuildOutcome> {
       if (age < STALE_BUILDING_MS) {
         return { status: "building", universeId: existing.id, slug: existing.slug };
       }
-      // stale — treat as abandoned, retry on the same row below
+      // stale — treat as abandoned, reclaim and retry below
     }
-    return runBuild(existing.id, existing.slug, query);
+    // FAILED, or a reclaimed stale BUILDING row — retry on the same row.
+    return {
+      status: "building",
+      universeId: existing.id,
+      slug: existing.slug,
+      start: () => runBuild(existing.id, existing.slug, query).then(() => undefined),
+    };
   }
 
   const remaining = await buildsRemainingToday();
@@ -118,7 +139,12 @@ export async function buildUniverse(query: string): Promise<BuildOutcome> {
     throw new Error(`failed to create or find universe for slug "${slug}"`);
   }
 
-  return runBuild(created.id, created.slug, query);
+  return {
+    status: "building",
+    universeId: created.id,
+    slug: created.slug,
+    start: () => runBuild(created.id, created.slug, query).then(() => undefined),
+  };
 }
 
 async function runBuild(universeId: string, slug: string, displayName: string): Promise<BuildOutcome> {
@@ -180,7 +206,14 @@ async function runBuild(universeId: string, slug: string, displayName: string): 
 
     return { status: "ready", universeId, slug };
   } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
+    // Gemini's raw 429 body is a multi-hundred-character JSON blob — never
+    // fit for a failReason a player might see on the build-theater screen.
+    const reason =
+      err instanceof GeminiError && err.kind === "rate_limited"
+        ? "STAN hit its daily quiz-generation limit — try again tomorrow, or play an existing fandom."
+        : err instanceof Error
+          ? err.message
+          : String(err);
     await db.universe.update({ where: { id: universeId }, data: { status: "FAILED", failReason: reason } });
     return { status: "failed", universeId, slug, reason };
   }

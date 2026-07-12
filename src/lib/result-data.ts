@@ -10,8 +10,10 @@ function isGradedAnswerArray(value: unknown): value is GradedAnswer[] {
 }
 
 export interface ResultViewParent {
+  id: string;
   name: string | null;
   score: number;
+  tier: string;
   universeName: string;
 }
 
@@ -50,7 +52,7 @@ export const getResultViewData = cache(async function getResultViewData(
   const parentRow = result.challengeOf
     ? await db.result.findUnique({
         where: { id: result.challengeOf },
-        select: { name: true, score: true, universe: { select: { name: true } } },
+        select: { id: true, name: true, score: true, tier: true, universe: { select: { name: true } } },
       })
     : null;
 
@@ -78,7 +80,13 @@ export const getResultViewData = cache(async function getResultViewData(
     badge: sourceBadge(scrapedRatio),
     palette: fandomPalette(result.universe.slug),
     parent: parentRow
-      ? { name: parentRow.name, score: parentRow.score, universeName: parentRow.universe.name }
+      ? {
+          id: parentRow.id,
+          name: parentRow.name,
+          score: parentRow.score,
+          tier: parentRow.tier,
+          universeName: parentRow.universe.name,
+        }
       : null,
   };
 });

@@ -4,6 +4,7 @@ import { getResultViewData } from "@/lib/result-data";
 import { fandomGradientStyle } from "@/lib/fandom-palette";
 import { ShareActions } from "@/components/result/ShareActions";
 import { DownloadCardButton } from "@/components/result/DownloadCardButton";
+import { VsCompare } from "@/components/result/VsCompare";
 
 export const dynamic = "force-dynamic";
 
@@ -53,28 +54,32 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
       />
 
       <div className="flex w-full max-w-md flex-col items-center gap-5 text-center">
-        {parent && (
-          <p className="text-xs text-muted-foreground">
-            Challenging {parent.name ?? "a challenger"}&apos;s {parent.score}/{data.total} on {parent.universeName}
-          </p>
-        )}
-
         <p className="font-display text-2xl leading-tight" style={fandomGradientStyle(palette)}>
           {data.universeName}
         </p>
 
-        <p className="text-lg text-muted-foreground">{data.playerName ?? "A Challenger"}</p>
+        {parent ? (
+          <VsCompare
+            palette={palette}
+            left={{ name: parent.name ?? "A Challenger", score: parent.score, total: data.total, tier: parent.tier }}
+            right={{ name: data.playerName ?? "A Challenger", score: data.score, total: data.total, tier: data.tier }}
+          />
+        ) : (
+          <>
+            <p className="text-lg text-muted-foreground">{data.playerName ?? "A Challenger"}</p>
 
-        <p className="font-display text-[clamp(3.5rem,16vw,7rem)] leading-none" style={fandomGradientStyle(palette)}>
-          {data.score}/{data.total}
-        </p>
+            <p className="font-display text-[clamp(3.5rem,16vw,7rem)] leading-none" style={fandomGradientStyle(palette)}>
+              {data.score}/{data.total}
+            </p>
 
-        <p
-          className="font-display clip-slash-both px-8 py-2 text-lg text-primary-foreground"
-          style={{ background: gradient }}
-        >
-          {data.tier}
-        </p>
+            <p
+              className="font-display clip-slash-both px-8 py-2 text-lg text-primary-foreground"
+              style={{ background: gradient }}
+            >
+              {data.tier}
+            </p>
+          </>
+        )}
 
         <p className="max-w-sm text-lg leading-snug italic">&ldquo;{data.roast}&rdquo;</p>
 

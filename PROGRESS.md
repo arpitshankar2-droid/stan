@@ -16,13 +16,46 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 9. Quiz UI — QuestionCard, 15s TimerRing, StreakMeter, reveals, interstitials
 - [x] 10. Result reveal — tiers, name prompt, FighterCard with roast
 - [x] 11. OG image — next/og card for link previews
-- [ ] 12. Challenge flow — /c/[id], fresh-set quiz, VS compare
+- [x] 12. Challenge flow — /c/[id], fresh-set quiz, VS compare
 - [ ] 13. MCP server — /api/mcp via mcp-handler, 6 tools, docs/mcp.md
 - [ ] 14. Polish — motion, empty/error states, a11y, reduced-motion
 - [ ] 15. Ship — GitHub + Vercel + prod migration + seed 15 fandoms + prod smoke test
 
 ## Log
 
+- **2026-07-12** — Task 12 done. Challenge flow.
+  - **Architecture decision, stated to the user before coding**: PLAN.md's file-tree comment
+    groups "landing → fresh quiz → VS compare" under one `/c/[id]` route, but the VS compare UI
+    was built at `/r/[childId]` instead (rendered whenever a result has a `parent`), not as a
+    separate screen on `/c/[id]`. Reasoning: the child result already gets a permanent, shareable
+    `/r/[id]` URL — putting the compare view there means whoever the challenger shares *their own*
+    result link with sees the full VS card automatically, and chaining (challenging a challenge)
+    falls out of the same mechanism for free, no extra routing. `/c/[id]` stayed a thin
+    landing-then-quiz wrapper that redirects into `/r/[childId]` on submit.
+  - `VsCompare.tsx` reuses the Task 9 `DuelCard` mobile-clash technique verbatim (opposing ∓2°
+    rotation unconditional on breakpoint, VS badge centered on the container so it survives the
+    stack) — same "fight-card poster, not a data table" requirement, second time this pattern's
+    paid for itself. Winner gets a gold ribbon (deliberately not the fandom palette, so it reads
+    as "competitive outcome" distinct from the palette-driven tier belts); a tie shows neither
+    ribbon and a small "Tied — anyone's game" line instead of a special-cased badge.
+  - Reused, not rebuilt: `selectQuizQuestions`'s exclusion logic and the `GET
+    /api/universes/[slug]?exclude=` route (Task 6), and `Quiz.tsx`/`NamePrompt.tsx` as-is (Task
+    9-10) via a new optional `challengeOf` prop threaded through to `POST /api/results`. `POST
+    /api/results` already accepted `challengeOf` since Task 6 — no backend change needed there.
+  - `result-data.ts`'s `ResultViewParent` gained `id`/`tier` fields (needed for the VS card but
+    not previously exposed).
+  - **Live-fired the entire flow end-to-end for real**, not just typechecked: fetched a real
+    parent result's `questionIds` directly from the DB, called the actual `/c/[id]` landing page
+    and confirmed real content renders, called the actual exclude-aware endpoint the "Accept
+    challenge" button uses and confirmed **zero overlap** between the fresh 10 and the parent's
+    original 10, played it through `/check` + `POST /api/results` with `challengeOf` set, and
+    confirmed on the resulting `/r/[childId]`: the WINNER ribbon attaches to the correct side
+    (verified by proximity in the raw HTML, not just "the text appears somewhere"), a rerun tied
+    9-9 shows neither ribbon and the tied caption instead, chaining works (challenged the
+    challenge result itself), and `/c/<bad-id>` renders the not-found state cleanly.
+  - Scoping note, said to the user up front: only the on-page compare view was redesigned. The
+    downloadable PNG card and the OG image still render the solo `FighterCard` for a challenge
+    result, not a two-fighter version — flagged as a reasonable follow-up, not silently dropped.
 - **2026-07-12** — Process note: killed the dev server after verifying each of Tasks 8, 9, and
   10, and the user hit "localhost isn't working" all three times as a result. Stopped doing that
   — leaving it running by default from here on, only stopping it for the specific case that

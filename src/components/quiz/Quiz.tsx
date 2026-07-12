@@ -28,9 +28,13 @@ interface Props {
   universeId: string;
   palette: FandomPalette;
   questions: ClientQuestion[];
+  // Set when this quiz was started via /c/[id] — carried through to
+  // POST /api/results so the new Result links back to the parent it's
+  // challenging (powers the VS compare view on the resulting /r/[id]).
+  challengeOf?: string;
 }
 
-export function Quiz({ universeId, palette, questions }: Props) {
+export function Quiz({ universeId, palette, questions, challengeOf }: Props) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -51,7 +55,7 @@ export function Quiz({ universeId, palette, questions }: Props) {
         const res = await fetch("/api/results", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ universeId, answers: finalAnswers, name }),
+          body: JSON.stringify({ universeId, answers: finalAnswers, name, challengeOf }),
         });
         const data = await res.json();
         if (res.ok && data.id) {
@@ -61,7 +65,7 @@ export function Quiz({ universeId, palette, questions }: Props) {
         setSubmitting(false);
       }
     },
-    [universeId, router],
+    [universeId, router, challengeOf],
   );
 
   const handleAnswer = useCallback(

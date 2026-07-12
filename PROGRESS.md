@@ -14,7 +14,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 7. Home page — hero, search + suggestions, universe wall
 - [x] 8. Build theater — polling screen, rotating status lines, fail/retry
 - [x] 9. Quiz UI — QuestionCard, 15s TimerRing, StreakMeter, reveals, interstitials
-- [ ] 10. Result reveal — tiers, name prompt, FighterCard with roast
+- [x] 10. Result reveal — tiers, name prompt, FighterCard with roast
 - [ ] 11. OG image — next/og card for link previews
 - [ ] 12. Challenge flow — /c/[id], fresh-set quiz, VS compare
 - [ ] 13. MCP server — /api/mcp via mcp-handler, 6 tools, docs/mcp.md
@@ -23,6 +23,55 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Task 10 done. Result reveal at `/r/[id]`, plus the name prompt that closes a
+  gap left open since Task 9.
+  - **Name prompt**: PLAN.md says the player name is "optional, asked at reveal" — that reveal
+    moment didn't exist until now. `Quiz.tsx` gained a `phase: "quiz" | "naming"` state; the last
+    question's reveal pause now transitions to `NamePrompt.tsx` (score shown, name input,
+    submit-or-skip) instead of submitting immediately. `POST /api/results` now carries the name
+    the player actually typed.
+  - **The page vs. the card, built as genuinely separate things** per explicit direction, not a
+    shared responsive component scaled two ways: `src/app/r/[id]/page.tsx` is an ordinary
+    responsive Server Component (direct DB read, same pattern as every other page) — universe
+    name and score in the fandom's palette, tier belt (`clip-slash-both`, already in
+    `globals.css`), roast, three real stat bars (accuracy from score/total, best streak from the
+    stored column, avg speed computed from the actual per-question `ms` values already sitting in
+    `Result.answers` — not fabricated), the source badge (kept, per explicit confirmation — this
+    is the artifact that actually gets shared externally, which is exactly where the honesty
+    requirement matters most), a challenge note when `challengeOf` is set, and a visibly-present
+    "Challenge someone" → `/c/[id]` button that 404s until Task 12 (same accepted gap pattern as
+    every prior task boundary).
+  - **`FighterCard.tsx`**: a separate, fixed-1080×1350px poster component, rendered off-screen
+    (`position: fixed; left: -9999px` — not `display:none`, which html-to-image can't capture),
+    used only by `DownloadCardButton.tsx`. Installed `html-to-image`. Used its built-in
+    `getFontEmbedCSS()` rather than hand-rolling base64 font embedding — it fetches and inlines
+    whatever fonts the captured node actually uses; same-origin because the app's fonts are
+    already self-hosted via `next/font` (Task 1), which sidesteps the cross-origin font-fetch
+    failure that's the classic html-to-image trap the user specifically flagged. `toPng()` called
+    with that CSS plus `pixelRatio: 2` for a crisp download. The html-to-image import itself is
+    dynamic (`await import(...)`), so the library doesn't ship in the page's initial JS unless
+    someone actually clicks download.
+  - `ShareActions.tsx`: Web Share API with a clipboard-copy fallback, per PLAN.md.
+  - **Live-fired the whole thing against the real DB**: scripted a full playthrough through the
+    real API (BoJack, 7/10, name "Arpit"), then a *chained* challenge result on top of it (Priya,
+    4/10, `challengeOf` set to the first), and confirmed via SSR output: the parent note renders
+    correctly ("Challenging Arpit's 7/10 on BoJack Horseman" — verified as real adjacent text
+    nodes after an initial naive substring check gave a false negative), accuracy/streak/avg-speed
+    numbers match hand-calculated values exactly (70%/7/4.7s), the badge is genuinely data-driven
+    (BoJack → "Verified Quotes", Naruto → "AI-Generated", not hardcoded), the anonymous
+    "A Challenger" fallback renders when a name is skipped, and the not-found state renders
+    cleanly (200 with a message, same convention as `/play/[slug]`'s equivalent state, not a
+    crash).
+  - **"Show me the rendered result page" — addressed directly given the tooling gap**: no browser
+    automation is available in this environment, so instead of just describing the design in
+    text, built a self-contained static HTML preview (via the Artifact tool) that reproduces the
+    real component tree, the real Neon Arena tokens, and the real BoJack palette — with the
+    actual self-hosted Archivo/Geist Mono `.woff2` files extracted from the just-built `.next`
+    output and base64-embedded, and populated with the real "Arpit, 7/10" result from the live
+    test above rather than placeholder copy. This is an honest substitute for a screenshot of the
+    live app, not a claim that the live app was visually verified — the underlying gap (nobody
+    has watched the real `/r/[id]` page render in an actual browser) still stands, same as every
+    prior visual task this session.
 - **2026-07-12** — Content-quality fix: two systematic bugs found during playtesting, not
   one-offs — self-answering quotes ("I am Sasuke Uchiha" with Sasuke as the answer) and generic
   quotes any character could say ("Hi BoJack"). New `src/lib/builder/quality.ts`:

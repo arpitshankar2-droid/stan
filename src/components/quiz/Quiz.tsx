@@ -8,6 +8,7 @@ import { RoundHeader } from "@/components/quiz/RoundHeader";
 import { QuestionCard } from "@/components/quiz/QuestionCard";
 import { DuelCard } from "@/components/quiz/DuelCard";
 import { ReportButton } from "@/components/quiz/ReportButton";
+import { NamePrompt } from "@/components/quiz/NamePrompt";
 import type { Reveal } from "@/components/quiz/types";
 
 interface SubmittedAnswer {
@@ -32,23 +33,25 @@ interface Props {
 export function Quiz({ universeId, palette, questions }: Props) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
+  const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const [answers, setAnswers] = useState<SubmittedAnswer[]>([]);
   const [questionStart, setQuestionStart] = useState(() => Date.now());
+  const [phase, setPhase] = useState<"quiz" | "naming">("quiz");
   const [submitting, setSubmitting] = useState(false);
 
   const question = questions[index];
 
   const finish = useCallback(
-    async (finalAnswers: SubmittedAnswer[]) => {
+    async (finalAnswers: SubmittedAnswer[], name: string | null) => {
       setSubmitting(true);
       try {
         const res = await fetch("/api/results", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ universeId, answers: finalAnswers }),
+          body: JSON.stringify({ universeId, answers: finalAnswers, name }),
         });
         const data = await res.json();
         if (res.ok && data.id) {
@@ -84,6 +87,7 @@ export function Quiz({ universeId, palette, questions }: Props) {
 
         setReveal({ picked: pickedOption, correct: result.correct, answer: result.answer });
         setStreak((s) => (result.correct ? s + 1 : 0));
+        if (result.correct) setScore((s) => s + 1);
 
         const nextAnswers = [...answers, { questionId: question.id, picked: pickedOption, ms }];
         setAnswers(nextAnswers);
@@ -95,18 +99,30 @@ export function Quiz({ universeId, palette, questions }: Props) {
             setReveal(null);
             setQuestionStart(Date.now());
           } else {
-            finish(nextAnswers);
+            setPhase("naming");
           }
         }, REVEAL_PAUSE_MS);
       })();
     },
-    [picked, question, questionStart, answers, index, questions.length, finish],
+    [picked, question, questionStart, answers, index, questions.length],
   );
 
   const handleTimeout = useCallback(() => {
     if (picked) return;
     handleAnswer(NO_ANSWER);
   }, [picked, handleAnswer]);
+
+  if (phase === "naming") {
+    return (
+      <NamePrompt
+        palette={palette}
+        score={score}
+        total={questions.length}
+        submitting={submitting}
+        onSubmit={(name) => finish(answers, name)}
+      />
+    );
+  }
 
   if (!question) return null;
 

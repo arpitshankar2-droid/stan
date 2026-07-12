@@ -20,10 +20,46 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 12. Challenge flow — /c/[id], fresh-set quiz, VS compare
 - [x] 13. MCP server — /api/mcp via mcp-handler, 6 tools, docs/mcp.md
 - [x] 14. Polish — motion, empty/error states, a11y, reduced-motion
-- [ ] 15. Ship — GitHub + Vercel + prod migration + seed 15 fandoms + prod smoke test
+- [x] 15. Ship — GitHub + Vercel + prod migration + seed 15 fandoms + prod smoke test
 
 ## Log
 
+- **2026-07-12** — Task 15 done. Repositioned the Giphy reaction GIF per direct feedback: it was
+  sitting past the action buttons at the very bottom, landing after the player had already
+  mentally shifted into "share or leave" mode. Moved to right after the roast line, before the
+  stat row, so the reaction lands while the tier result is still fresh — verified in the raw HTML
+  (both in dev and on prod, below) that the `<img>` tag sits immediately after the roast `</p>`
+  and immediately before the stats `<div>`, not just "somewhere near the top now."
+  **Full production smoke test against the real live site**, not a local proxy for it:
+  - Home page: 200, universe wall shows all 4 real fandoms (Breaking Bad, BoJack Horseman, The
+    Office, Naruto) with correct badges (`Verified Quotes` / `AI-Generated` both present and
+    correctly assigned).
+  - Fuzzy search (`GET /api/universes?q=bojack`) hits the real prod DB and returns correctly.
+  - `/play/breaking-bad`: 200. `GET /api/universes/breaking-bad`: ready, 10 questions, `answer`
+    field genuinely absent from the response, 7 options-format + 3 duel-format matching the
+    difficulty curve.
+  - **Played a full 10-question quiz against production for real**: scripted answers through the
+    live `/check` and `POST /api/results` endpoints, got back `score: 7` (exactly matching the
+    scripted 7-correct pattern) and a real tier (`Pinkman's Partner`) — this is a genuine
+    end-to-end proof that build→serve→grade→persist all work correctly against the actual
+    production database, not just that the pages load.
+  - `/r/[id]` for that real result: renders correctly, GIF confirmed in its new correct position
+    directly in the raw HTML (`...”</p><img src="https://media4.giphy.com/...`, immediately
+    followed by the stats `<div>`).
+  - **OG image**: fetched the real PNG from `/r/[id]/opengraph-image` on prod and **looked at
+    it** (not just checked magic bytes) — renders perfectly, correct Breaking Bad yellow→green
+    palette, real score/tier/roast/stats, no fallback-font or layout issues.
+  - **MCP endpoint**: `tools/list` against `https://stan-two.vercel.app/api/mcp` returns all 6
+    tools; a real `tools/call` (`get_universe_status` for `bojack-horseman`) returns real prod
+    data.
+  - Challenge flow (`/c/[id]`) and not-found states (`/r/<bad-id>`, `/play/<bad-slug>`) all
+    return correctly on prod.
+  - **Deliberately not done, by explicit agreed decision, not an oversight**: the remaining 11
+    fandoms from PLAN.md's original seed list are not seeded. Per the three-way decision earlier
+    in this task (same Neon DB for dev/prod, ship with today's 4, research more candidates
+    later), this is scope reduction the user chose, not a blocker — PLAN.md's seed-list section
+    already documents that most of the original 15 were tested and rejected as too thin during
+    Task 4, so "seed the rest" was never going to be a simple script run anyway.
 - **2026-07-12** — Task 15 (Ship) started, and a big context shift: **STAN is deployed and live
   at https://stan-two.vercel.app**, set up directly by the user (Vercel account/project creation
   was outside what I have access to in this environment — confirmed earlier in this session no

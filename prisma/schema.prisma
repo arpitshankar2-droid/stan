@@ -21,6 +21,12 @@ enum QuoteSource {
   MIXED
 }
 
+enum ReportReason {
+  WRONG_ANSWER
+  BAD_QUOTE
+  OTHER
+}
+
 model Universe {
   id         String         @id @default(cuid())
   slug       String         @unique
@@ -57,6 +63,18 @@ model Question {
 
   @@unique([universeId, quoteHash])
   @@index([universeId, difficulty])
+}
+
+// Deliberately no relation to Question: a build's questions get wiped and
+// recreated wholesale on rebuild (see pipeline.ts), and a report should
+// survive that rather than cascade-delete with the row it was filed against.
+model QuestionReport {
+  id         String       @id @default(cuid())
+  questionId String
+  reason     ReportReason
+  createdAt  DateTime     @default(now())
+
+  @@index([questionId])
 }
 
 model Result {

@@ -9,7 +9,7 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
   const universe = await db.universe.findUnique({ where: { slug } });
 
   return (
-    <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6">
+    <main className="relative flex flex-1 flex-col items-center overflow-hidden px-4 py-10 sm:px-6">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-40 left-1/2 h-[32rem] w-[52rem] -translate-x-1/2 rounded-full bg-arena-gradient opacity-15 blur-[120px]"

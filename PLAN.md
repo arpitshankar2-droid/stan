@@ -325,4 +325,10 @@ DAILY_BUILD_CEILING="200"
 
 ## 7. Out of scope (v1)
 Accounts/auth, leaderboards beyond 1-v-1 compare, audio, non-quote question types
-(episode trivia etc.), moderation/reporting, i18n, native share images beyond OG.
+(episode trivia etc.), i18n, native share images beyond OG.
+
+**Amended Task 9**: lightweight per-question reporting is now in scope — a flag icon on the
+quote card with inline wrong_answer/bad_quote/other chips, `POST /api/questions/[id]/report`,
+`QuestionReport` model. Deliberately minimal (no auth, no dedupe, no moderation dashboard/review
+UI) — a full moderation *system* is still out of scope; this is just a signal-collection
+affordance the user asked for directly during Task 9 playtesting.

@@ -23,6 +23,66 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Task 9 follow-up: seven fixes from the user's real browser playtest.
+  - **Laggy tap (most urgent)**: `handleAnswer` awaited `POST /api/questions/[id]/check`
+    (measured live at 300-800ms) before any visual change — so every tap felt unresponsive by
+    exactly that latency. Fixed by splitting state: `picked` is set synchronously the instant a
+    button is tapped (immediate pressed/selected ring), `reveal` (correctness) arrives later and
+    overlays cyan/red on top of it. `QuestionCard`/`DuelCard` now disable on `picked`, not
+    `reveal`, so a second tap can't race the network call either.
+  - **Progress dots weren't progress**: the 10-dot meter was actually a streak meter (fills on
+    consecutive correct, resets on wrong) — reasonable in isolation, but sitting right next to
+    "ROUND N/10" it reads as quiz progress, and a meter that visibly resets while the round
+    number keeps climbing looks broken. Renamed/repurposed to `ProgressDots` (lit up to the
+    current question, monotonically), moved streak to small inline text next to the round label
+    ("3 in a row", only shown at streak >= 2) instead of a second row of dots.
+  - **Report button added** — flag icon (lucide-react, not emoji, consistent with the identity
+    rule) top-right of the quote card, opens inline wrong_answer/bad_quote/other chips,
+    `POST /api/questions/[id]/report`. New `QuestionReport` model + migration
+    `20260712095609_add_question_report` (**hit the same Prisma-diff-vs-hand-added-trgm-index
+    trap as the duel migration** — stripped the same erroneous `DROP INDEX` before applying,
+    verified the index survived afterward). **Noted directly to the user**: PLAN.md §7 "Out of
+    scope (v1)" explicitly lists "moderation/reporting" — this wasn't in the approved plan or
+    anything described for Task 9; the only "Flag" anywhere in this project's history is a table
+    name from the old, discarded pre-Task-2 schema. Built it anyway per the explicit current
+    instruction, and updated PLAN.md's out-of-scope line to reflect the real decision rather than
+    let the doc silently contradict the code. Deliberately minimal: no auth, no dedupe, no
+    moderation dashboard, no relation/cascade to Question (so reports survive a rebuild that
+    wipes and recreates questions) — proportionate to "add the button," not a full system.
+  - **Timer ring was illegible**: a bare spinning ring with no number communicated nothing.
+    Added a ticking seconds-remaining number centered inside it (a separate `setInterval` purely
+    for the display number, decoupled from the CSS-transition drain which stays the efficient,
+    non-ticking animation it already was).
+  - **Removed the source badge from the quiz screen** — it's already shown on the universe card
+    the player chose from; repeating "VERIFIED QUOTES" on every single question was clutter, not
+    additional honesty. The wall and search dropdown are still where `quoteSource` is surfaced.
+    Also caught while removing it: `GET /api/universes/[slug]` was still returning the raw
+    `source` enum rather than the honest `scrapedRatio` fixed in Task 7/9 elsewhere — fixed that
+    too even though the quiz screen no longer renders it, since other future consumers of that
+    endpoint shouldn't get the dishonest value back.
+  - **Dead space**: quote card and option buttons widened (`max-w-md` → `max-w-lg`), quote text
+    and card padding increased, container gaps tightened (`gap-8` → `gap-5`), and the outer
+    `/play/[slug]` page changed from full vertical `justify-center` to top-anchored with
+    generous padding — a short building/failed screen still reads fine anchored near the top;
+    what was actually broken was a modestly-sized quiz getting dead-centered in leftover
+    whitespace on a tall viewport.
+  - **Correct/wrong feedback strengthened**: added a genuine "pulse-glow" burst animation
+    (scale + cyan glow, 600ms) for a correct pick — the previous version was a static ring color
+    change with no motion, easy to miss entirely. Bumped the shake to 500ms (was 400ms, already
+    technically over the 300ms floor but bumped for parity) and `REVEAL_PAUSE_MS` from 1200ms to
+    1600ms so there's comfortable time to actually see either animation before the quiz advances.
+  - **Live-verified all of the above against the real DB**, not just typechecked: confirmed
+    `/api/questions/[id]/report` persists real `QuestionReport` rows with the correct reason
+    enum and 400s on an invalid reason; re-ran the full scripted 10-question playthrough (mixed
+    formats) end-to-end after all the restructuring and got the same correct `score: 5` as
+    before, confirming nothing broke in the process. Confirmed via dev-server logs that `/check`
+    genuinely does take 300-800ms in this environment — direct evidence for why the instant-tap
+    fix was the right one, not a guess.
+  - **Same honest gap as before**: the actual visual result (does the pulse read as a "burst,"
+    does the timer number look right inside the ring, does the tightened spacing actually feel
+    less empty) is still unverified in a real browser — no automation tool available here. Code
+    reviewed carefully against each specific complaint, but this is the task where that
+    limitation bites hardest, twice in a row now.
 - **2026-07-12** — AGENTS.md provenance, investigated on request. Landed in the Task 1 scaffold
   commit (`dbad9b3`), authored under the user's own git identity with `Co-Authored-By: Claude
   Fable 5` — i.e. it came in during the very first scaffold pass, before Sonnet 5 took over this

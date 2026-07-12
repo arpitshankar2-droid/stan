@@ -24,7 +24,6 @@ export function BuildTheater({ slug, initialStatus, initialName, initialFailReas
   const [failReason, setFailReason] = useState<string | null>(initialFailReason);
   const [retrying, setRetrying] = useState(false);
   const [universeId, setUniverseId] = useState<string | null>(null);
-  const [scrapedRatio, setScrapedRatio] = useState(0);
   const [quiz, setQuiz] = useState<ClientQuestion[] | null>(null);
 
   useEffect(() => {
@@ -39,7 +38,6 @@ export function BuildTheater({ slug, initialStatus, initialName, initialFailReas
         if (data.status === "ready") {
           setName(data.universe?.name ?? name);
           setUniverseId(data.universe?.id ?? null);
-          setScrapedRatio(data.universe?.scrapedRatio ?? 0);
           setQuiz(data.quiz?.questions ?? null);
           setStatus("ready");
         } else if (data.status === "failed") {
@@ -72,7 +70,6 @@ export function BuildTheater({ slug, initialStatus, initialName, initialFailReas
         const data = await res.json();
         if (cancelled || data.status !== "ready") return;
         setUniverseId(data.universe?.id ?? null);
-        setScrapedRatio(data.universe?.scrapedRatio ?? 0);
         setQuiz(data.quiz?.questions ?? null);
       } catch {
         // the retry/rebuild affordances live on the failed state; a failed
@@ -121,7 +118,7 @@ export function BuildTheater({ slug, initialStatus, initialName, initialFailReas
         </div>
       );
     }
-    return <Quiz universeId={universeId} palette={palette} scrapedRatio={scrapedRatio} questions={quiz} />;
+    return <Quiz universeId={universeId} palette={palette} questions={quiz} />;
   }
 
   if (status === "failed") {

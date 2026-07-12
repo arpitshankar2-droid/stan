@@ -7,6 +7,7 @@ import type { ClientQuestion } from "@/lib/quiz/duel";
 import { RoundHeader } from "@/components/quiz/RoundHeader";
 import { QuestionCard } from "@/components/quiz/QuestionCard";
 import { DuelCard } from "@/components/quiz/DuelCard";
+import { ReportButton } from "@/components/quiz/ReportButton";
 import type { Reveal } from "@/components/quiz/types";
 
 interface SubmittedAnswer {
@@ -18,19 +19,21 @@ interface SubmittedAnswer {
 // Non-empty so it clears both the /check and /results zod schemas
 // (picked: z.string().min(1)) while never colliding with a real answer.
 const NO_ANSWER = "(no answer)";
-const REVEAL_PAUSE_MS = 1200;
+// Long enough that the pulse/shake (600ms/500ms) plus the color change are
+// both clearly visible before advancing, not just technically rendered.
+const REVEAL_PAUSE_MS = 1600;
 
 interface Props {
   universeId: string;
   palette: FandomPalette;
-  scrapedRatio: number;
   questions: ClientQuestion[];
 }
 
-export function Quiz({ universeId, palette, scrapedRatio, questions }: Props) {
+export function Quiz({ universeId, palette, questions }: Props) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [picked, setPicked] = useState<string | null>(null);
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const [answers, setAnswers] = useState<SubmittedAnswer[]>([]);
   const [questionStart, setQuestionStart] = useState(() => Date.now());
@@ -59,85 +62,85 @@ export function Quiz({ universeId, palette, scrapedRatio, questions }: Props) {
   );
 
   const handleAnswer = useCallback(
-    async (picked: string) => {
-      if (reveal) return; // already answered this question
+    (pickedOption: string) => {
+      if (picked) return; // already answered this question
+      setPicked(pickedOption); // instant — must not wait on the network
       const ms = Date.now() - questionStart;
 
-      let result: { correct: boolean; answer: string };
-      try {
-        const res = await fetch(`/api/questions/${question.id}/check`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ picked }),
-        });
-        result = await res.json();
-      } catch {
-        // Best-effort local fallback — the final grade in POST /api/results
-        // is authoritative regardless of what this call returns.
-        result = { correct: false, answer: picked };
-      }
-
-      setReveal({ picked, correct: result.correct, answer: result.answer });
-      setStreak((s) => (result.correct ? s + 1 : 0));
-
-      const nextAnswers = [...answers, { questionId: question.id, picked, ms }];
-      setAnswers(nextAnswers);
-
-      setTimeout(() => {
-        if (index + 1 < questions.length) {
-          setIndex((i) => i + 1);
-          setReveal(null);
-          setQuestionStart(Date.now());
-        } else {
-          finish(nextAnswers);
+      (async () => {
+        let result: { correct: boolean; answer: string };
+        try {
+          const res = await fetch(`/api/questions/${question.id}/check`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ picked: pickedOption }),
+          });
+          result = await res.json();
+        } catch {
+          // Best-effort local fallback — the final grade in POST /api/results
+          // is authoritative regardless of what this call returns.
+          result = { correct: false, answer: pickedOption };
         }
-      }, REVEAL_PAUSE_MS);
+
+        setReveal({ picked: pickedOption, correct: result.correct, answer: result.answer });
+        setStreak((s) => (result.correct ? s + 1 : 0));
+
+        const nextAnswers = [...answers, { questionId: question.id, picked: pickedOption, ms }];
+        setAnswers(nextAnswers);
+
+        setTimeout(() => {
+          if (index + 1 < questions.length) {
+            setIndex((i) => i + 1);
+            setPicked(null);
+            setReveal(null);
+            setQuestionStart(Date.now());
+          } else {
+            finish(nextAnswers);
+          }
+        }, REVEAL_PAUSE_MS);
+      })();
     },
-    [reveal, question, questionStart, answers, index, questions.length, finish],
+    [picked, question, questionStart, answers, index, questions.length, finish],
   );
 
   const handleTimeout = useCallback(() => {
-    if (reveal) return;
+    if (picked) return;
     handleAnswer(NO_ANSWER);
-  }, [reveal, handleAnswer]);
+  }, [picked, handleAnswer]);
 
   if (!question) return null;
 
   return (
-    <div className="flex w-full flex-col items-center gap-8 px-4">
+    <div className="flex w-full flex-col items-center gap-5 px-4">
       <RoundHeader
         round={index + 1}
         total={questions.length}
         palette={palette}
-        scrapedRatio={scrapedRatio}
         streak={streak}
         questionKey={question.id}
-        timerPaused={!!reveal || submitting}
+        timerPaused={!!picked || submitting}
         onExpire={handleTimeout}
       />
 
       <div
-        className="w-full max-w-md rounded-2xl p-[1.5px]"
+        className="relative w-full max-w-lg rounded-2xl p-[1.5px]"
         style={{ background: `linear-gradient(105deg, ${palette.from}, ${palette.to})` }}
       >
         <div
-          className="rounded-2xl px-6 py-8 text-center"
+          className="rounded-2xl px-6 py-10 text-center"
           style={{ background: `color-mix(in oklch, ${palette.from} 6%, var(--card))` }}
         >
-          <p className="text-xl leading-snug italic">&ldquo;{question.quote}&rdquo;</p>
+          <p className="text-2xl leading-snug italic">&ldquo;{question.quote}&rdquo;</p>
+        </div>
+        <div className="absolute top-2 right-2">
+          <ReportButton key={question.id} questionId={question.id} />
         </div>
       </div>
 
       {question.format === "duel" ? (
-        <DuelCard
-          options={question.options}
-          palette={palette}
-          disabled={!!reveal}
-          reveal={reveal}
-          onPick={handleAnswer}
-        />
+        <DuelCard options={question.options} palette={palette} picked={picked} reveal={reveal} onPick={handleAnswer} />
       ) : (
-        <QuestionCard options={question.options} disabled={!!reveal} reveal={reveal} onPick={handleAnswer} />
+        <QuestionCard options={question.options} picked={picked} reveal={reveal} onPick={handleAnswer} />
       )}
 
       {reveal && question.context && <p className="text-xs text-muted-foreground">{question.context}</p>}

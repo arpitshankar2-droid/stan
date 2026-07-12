@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getUniverseStatus } from "@/lib/universes/status";
 import { selectQuizQuestions } from "@/lib/quiz/select";
 import { formatQuestionForClient } from "@/lib/quiz/duel";
-import { scrapedRatios } from "@/lib/quiz/source-ratio";
 import { apiError } from "@/lib/http";
 
 // GET /api/universes/[slug]?exclude=id1,id2  — build status, and the quiz
@@ -12,30 +11,18 @@ import { apiError } from "@/lib/http";
 // in POST /api/results.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const universe = await db.universe.findUnique({ where: { slug } });
-  if (!universe) return apiError(404, "No universe with that slug");
+  const status = await getUniverseStatus(slug);
 
-  if (universe.status === "BUILDING") {
-    return NextResponse.json({ status: "building" });
-  }
-  if (universe.status === "FAILED") {
-    return NextResponse.json({ status: "failed", reason: universe.failReason });
-  }
+  if (status.status === "not_found") return apiError(404, "No universe with that slug");
+  if (status.status === "building") return NextResponse.json({ status: "building" });
+  if (status.status === "failed") return NextResponse.json({ status: "failed", reason: status.reason });
 
   const exclude = (req.nextUrl.searchParams.get("exclude") ?? "").split(",").filter(Boolean);
-  const questions = await selectQuizQuestions(universe.id, exclude);
-  const ratios = await scrapedRatios([universe.id]);
+  const questions = await selectQuizQuestions(status.universe.id, exclude);
 
   return NextResponse.json({
     status: "ready",
-    universe: {
-      id: universe.id,
-      slug: universe.slug,
-      name: universe.name,
-      scrapedRatio: ratios.get(universe.id) ?? 0,
-    },
-    quiz: {
-      questions: questions.map(formatQuestionForClient),
-    },
+    universe: status.universe,
+    quiz: { questions: questions.map(formatQuestionForClient) },
   });
 }

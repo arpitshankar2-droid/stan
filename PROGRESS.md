@@ -17,12 +17,55 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 10. Result reveal — tiers, name prompt, FighterCard with roast
 - [x] 11. OG image — next/og card for link previews
 - [x] 12. Challenge flow — /c/[id], fresh-set quiz, VS compare
-- [ ] 13. MCP server — /api/mcp via mcp-handler, 6 tools, docs/mcp.md
+- [x] 13. MCP server — /api/mcp via mcp-handler, 6 tools, docs/mcp.md
 - [ ] 14. Polish — motion, empty/error states, a11y, reduced-motion
 - [ ] 15. Ship — GitHub + Vercel + prod migration + seed 15 fandoms + prod smoke test
 
 ## Log
 
+- **2026-07-12** — Task 13 done. MCP server, 6 tools, `docs/mcp.md`.
+  - **Resolved a real discrepancy between PLAN.md's literal path and how the package actually
+    works**, checked directly against installed source rather than assumed: `mcp-handler`'s
+    `basePath` isn't tied to Next's `[transport]` route param at all — the handler compares the
+    request's raw URL against `basePath + "/mcp"` internally (confirmed by reading
+    `deriveEndpointsFromBasePath` in the compiled package). Following PLAN.md's literal path
+    (`app/api/mcp/[transport]/route.ts`) with the matching `basePath: "/api/mcp"` would have
+    produced a redundant real endpoint at `/api/mcp/mcp`. The package's own documented working
+    example places the file at `app/api/[transport]/route.ts` with `basePath: "/api"`, giving a
+    clean `/api/mcp` — matches what PLAN's architecture actually intends, so used that instead
+    and noted the deviation rather than silently diverging from what PLAN.md literally said.
+  - **"Same service layer, no duplicated logic" (PLAN.md, explicit requirement) — done as a real
+    refactor, not just a description**: extracted the query/status/submit logic that used to live
+    inline in the API route handlers into shared `src/lib/` functions, then updated the existing
+    routes to call them, so both front doors now genuinely run identical code:
+    `src/lib/universes/query.ts` (`listReadyUniverses`, `searchUniverses` — used by
+    `GET /api/universes` and the `search_universes` tool), `src/lib/universes/status.ts`
+    (`getUniverseStatus` — used by `GET /api/universes/[slug]` and both `get_universe_status` and
+    `start_quiz`), `src/lib/quiz/submit.ts` (`submitResult` — used by `POST /api/results` and
+    `grade_quiz`). `get_result` reuses `result-data.ts`'s `getResultViewData` from Task 11
+    unchanged. Re-verified every refactored REST route against the live DB afterward to confirm
+    the extraction didn't change behavior (see below).
+  - The 6 tools: `search_universes`, `build_universe`, `get_universe_status`, `start_quiz`,
+    `grade_quiz`, `get_result` — matches PLAN.md's list exactly. `build_universe` awaits the
+    build's `start()` callback directly (same pattern as `seed-universes.ts`, not the app's
+    fire-and-forget `after()` — an MCP tool call is a real request/response, "come back and poll"
+    doesn't fit that shape) and shares the app's daily Gemini build ceiling, called out in the
+    docs.
+  - **Live-fired real JSON-RPC requests against the running server**, not just typechecked or
+    read the schema: `initialize` and `tools/list` both return correctly (all 6 tools present
+    with zod-derived JSON schemas matching each tool's real input); called `search_universes`
+    and `get_universe_status` and confirmed real DB data comes back; ran the full loop
+    (`start_quiz` → answered via the existing `/check` endpoint → `grade_quiz` with
+    `name: "MCP-Test"` → `get_result`) and confirmed the score (6/10) matches the scripted
+    answers exactly, `isError` is `false` for informational states (`not_found` from
+    `get_universe_status`) and correctly `true` for real errors (`get_result` on a bad id);
+    confirmed the MCP-created result is a genuinely real `Result` row by loading its `/r/[id]`
+    page in the actual web app (200, not a separate MCP-only shadow record); confirmed
+    `build_universe` on an already-ready fandom returns in 0.3s (the dedupe path, no wasted
+    Gemini spend). Also regression-tested the three refactored REST routes
+    (`GET /api/universes`, `GET /api/universes?q=`, `GET /api/universes/[slug]`,
+    `POST /api/results`) against the live DB post-refactor and confirmed identical behavior to
+    before the extraction.
 - **2026-07-12** — Task 12 done. Challenge flow.
   - **Architecture decision, stated to the user before coding**: PLAN.md's file-tree comment
     groups "landing → fresh quiz → VS compare" under one `/c/[id]` route, but the VS compare UI

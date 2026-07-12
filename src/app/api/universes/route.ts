@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
 import { buildUniverse } from "@/lib/builder/pipeline";
-import { scrapedRatios } from "@/lib/quiz/source-ratio";
+import { listReadyUniverses, searchUniverses } from "@/lib/universes/query";
 import { apiError } from "@/lib/http";
 
 // The lock/dedupe step this route awaits directly is fast; the actual
@@ -15,44 +14,8 @@ export const maxDuration = 300;
 // GET /api/universes            — recent READY universes, for the universe wall
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
-
-  if (!q) {
-    const universes = await db.universe.findMany({
-      where: { status: "READY" },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      select: { id: true, slug: true, name: true, createdAt: true },
-    });
-    const ratios = await scrapedRatios(universes.map((u) => u.id));
-    return NextResponse.json({
-      universes: universes.map((u) => ({
-        slug: u.slug,
-        name: u.name,
-        scrapedRatio: ratios.get(u.id) ?? 0,
-      })),
-    });
-  }
-
-  // pg_trgm similarity search — same matching strategy as the build pipeline's
-  // own dedupe, so "what you'd find by typing" matches "what building would
-  // have deduped against".
-  const universes = await db.$queryRaw<
-    { id: string; slug: string; name: string; status: string }[]
-  >`
-    SELECT id, slug, name, status FROM "Universe"
-    WHERE similarity(name, ${q}) > 0.2 OR name ILIKE ${"%" + q + "%"}
-    ORDER BY similarity(name, ${q}) DESC
-    LIMIT 10
-  `;
-  const ratios = await scrapedRatios(universes.map((u) => u.id));
-  return NextResponse.json({
-    universes: universes.map((u) => ({
-      slug: u.slug,
-      name: u.name,
-      status: u.status,
-      scrapedRatio: ratios.get(u.id) ?? 0,
-    })),
-  });
+  const universes = q ? await searchUniverses(q) : await listReadyUniverses();
+  return NextResponse.json({ universes });
 }
 
 const createSchema = z.object({ name: z.string().trim().min(1).max(100) });

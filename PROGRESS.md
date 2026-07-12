@@ -10,7 +10,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 3. Gemini client — structured-output helper, zod schemas, budget gate, prompts
 - [x] 4. Fandom scraper — wiki resolve, strategy-ladder quote scrape, wikitext cleaner
 - [x] 5. Build pipeline — scrape→LLM→persist, lock, fallback, seed script (batch-1: 3 dev universes)
-- [ ] 6. API routes — universes search/create/status, results grade/get, quiz selection
+- [x] 6. API routes — universes search/create/status, results grade/get, quiz selection
 - [ ] 7. Home page — hero, search + suggestions, universe wall
 - [ ] 8. Build theater — polling screen, rotating status lines, fail/retry
 - [ ] 9. Quiz UI — QuestionCard, 15s TimerRing, StreakMeter, reveals, interstitials
@@ -23,6 +23,36 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Task 6 done. `src/lib/http.ts` (`apiError` helper), `src/lib/quiz/select.ts`
+  (`selectQuizQuestions`: 3/4/3 easy/mid/hard curve, excluded-id set only used as a last-resort
+  fallback so challenge quizzes get a genuinely fresh set when the bank supports it), `grade.ts`
+  (server-side grading — client never sees `answer` pre-submission — plus streak tracking),
+  `tiers.ts` (`pickTier`, zod-validates the universe's stored `tiers` JSON and picks a random
+  line from the matched tier). Routes: `GET/POST /api/universes` (wall + pg_trgm fuzzy search +
+  find-or-build), `GET /api/universes/[slug]` (status + quiz payload), `POST /api/results`
+  (grade + persist), `GET /api/results/[id]` (result + resolved challenge parent).
+  `tsc --noEmit` was clean, but per this project's now-established pattern that typechecking
+  doesn't catch real bugs, ran the dev server against the live seeded DB (Breaking Bad,
+  BoJack Horseman, The Office) before calling it done — and it didn't start clean:
+  - **Every DB-touching route 500'd**: `[TypeError: bufferUtil.mask is not a function]`. Root
+    cause: `ws` (used by `@neondatabase/serverless` for its WebSocket transport) probes for its
+    optional native accelerators (`bufferutil`/`utf-8-validate`) at require-time; those packages
+    aren't installed, but Next's webpack bundler was resolving them to empty stub modules
+    instead of leaving them unresolved, so `ws` believed the accelerator was present and called
+    a method the stub doesn't have. Fixed by adding `config.externals.push("bufferutil",
+    "utf-8-validate")` to `next.config.ts`'s webpack config, which lets Node's real module
+    resolution (correctly) fail to find them so `ws` falls back to its pure-JS path.
+  - With that fixed, live-verified every surface: wall listing, pg_trgm fuzzy search (including
+    typo tolerance, e.g. "bojak" → BoJack Horseman), no-match returns `[]`; quiz payload for all
+    3 seeded universes returns exactly 10 questions with the `answer` field genuinely absent
+    from the wire payload and the difficulty distribution confirmed `{1:3, 2:4, 3:3}` against
+    the live DB; `exclude` param against BoJack's 210-question bank produced a second 10-question
+    set with zero id overlap against the first; grading verified against a hand-constructed
+    8-correct/2-wrong submission (server returned `score: 8, bestStreak: 8` exactly), and a
+    chained challenge submission correctly resolved its `parent` with the first result's full
+    data; 400 on a malformed submission, 404 on an unknown slug/result id; `BUILDING`/`FAILED`/
+    `READY` status branches all verified by toggling a universe's status directly in the DB and
+    reverting; POST dedupe path for an already-READY universe returns in <1s (no rebuild).
 - **2026-07-11** — Task 5 done: `src/lib/builder/pipeline.ts` (normalize/match → lock via
   BUILDING row → resolve → scrape → LLM → persist, stale-BUILDING retry, FAILED+reason on any
   error) and `scripts/seed-universes.ts`. Seeding batch 1 for real surfaced problems no amount

@@ -6,6 +6,7 @@ import { generateStructured, GeminiError } from "@/lib/gemini";
 import { universeResponseSchema, parseUniversePayload } from "@/lib/builder/schema";
 import { buildFromScrapedPrompt, buildGeneratedPrompt } from "@/lib/builder/prompts";
 import { buildsRemainingToday } from "@/lib/builder/budget";
+import { quoteRevealsAnswer, isGenericQuote } from "@/lib/builder/quality";
 import type { QuoteSource, Universe } from "@prisma/client";
 import type { ScrapedQuote } from "@/lib/builder/prompts";
 
@@ -154,7 +155,14 @@ async function runBuild(universeId: string, slug: string, displayName: string): 
     const wiki = await resolveWiki(displayName);
     const scrape = wiki ? await scrapeQuotes(wiki.host) : null;
     const usableQuotes = capPerSpeaker(
-      (scrape?.quotes ?? []).filter((q) => q.quote.length >= 4),
+      (scrape?.quotes ?? [])
+        .filter((q) => q.quote.length >= 4)
+        // Self-answering candidates ("I am Sasuke Uchiha") are dropped
+        // before Gemini ever sees them, not just at the post-generation
+        // check below — no point spending a candidate slot on a quote
+        // that could never survive validation anyway.
+        .filter((q) => !q.speaker || !quoteRevealsAnswer(q.quote, q.speaker))
+        .filter((q) => !isGenericQuote(q.quote)),
       MAX_QUOTES_PER_SPEAKER,
     );
 

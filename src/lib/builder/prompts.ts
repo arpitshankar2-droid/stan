@@ -12,6 +12,8 @@ You are building the complete question bank for STAN, a "who said this?" quiz ga
 QUESTIONS — produce ${QUESTION_TARGET} multiple-choice questions (never fewer than 40 unless the
 material genuinely cannot support it):
 - "quote" is a verbatim line from the fandom, trimmed, without surrounding quotation marks.
+  Never select or invent a quote that contains the speaker's own name — "I am Sasuke Uchiha" is
+  not a valid question when Sasuke Uchiha is the answer, because the text gives itself away.
 - "answer" is the character/person who actually said it. Use the name fans use ("Jesse Pinkman", not "Jesse Bruce Pinkman").
 - "distractors" are exactly 3 OTHER characters from this same universe who could plausibly have
   said the line — same scene, similar voice, or fan-confusable — but definitively did not.
@@ -32,8 +34,10 @@ material genuinely cannot support it):
 - "context" is one short, spoiler-light locator shown AFTER the player answers
   ("season 2 finale", "from the bridge of the Going Merry", "opening track, 1989").
   It must never hint at or contain the answer.
-- No duplicate or near-duplicate quotes. No quotes so generic that several answers would be
-  fair ("Let's go!"). Every question must have exactly one defensible answer.
+- No duplicate or near-duplicate quotes. Exclude greetings, single-word reactions, generic
+  pleasantries, and any line that multiple characters would plausibly say ("Let's go!", "Hi
+  BoJack", "What?"). Every quote must be distinctive enough that a real fan could identify the
+  speaker from the line alone, with exactly one defensible answer.
 - CAST BALANCE — this is a hard requirement, not a nice-to-have: the bank must be recognizably
   about THIS fandom's actual protagonist(s) and main cast, weighted the way any fan would expect.
   The provided candidate material's *volume* per character is not a reliable signal of that

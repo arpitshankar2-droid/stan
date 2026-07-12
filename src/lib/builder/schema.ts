@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Type, type Schema } from "@google/genai";
+import { quoteRevealsAnswer, isGenericQuote } from "@/lib/builder/quality";
 
 export const TIER_COUNT = 5;
 export const QUESTION_TARGET = 55;
@@ -26,7 +27,15 @@ const questionItemSchema = z
   .refine(
     (q) => !q.distractors.some((d) => d.trim().toLowerCase() === q.answer.trim().toLowerCase()),
     { message: "distractor duplicates the answer" },
-  );
+  )
+  // Same two content-quality checks as the pre-prompt scraped-candidate
+  // filter in pipeline.ts, run again here because Gemini can also select or
+  // invent a bad quote independently (the "top up" step, or the fully
+  // generated-fallback prompt) — this is the backstop, not the only check.
+  .refine((q) => !quoteRevealsAnswer(q.quote, q.answer), {
+    message: "quote reveals the answer's own name",
+  })
+  .refine((q) => !isGenericQuote(q.quote), { message: "quote is too generic to identify a speaker" });
 
 const tierItemSchema = z.object({
   name: z.string().min(1),

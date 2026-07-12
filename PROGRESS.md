@@ -23,6 +23,35 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Content-quality fix: two systematic bugs found during playtesting, not
+  one-offs — self-answering quotes ("I am Sasuke Uchiha" with Sasuke as the answer) and generic
+  quotes any character could say ("Hi BoJack"). New `src/lib/builder/quality.ts`:
+  `quoteRevealsAnswer(quote, answer)` — word-boundary (not raw-substring, so an answer like "Al"
+  doesn't false-positive on "practical"), case-insensitive match of each significant token of the
+  ANSWER's own name against the quote text; only checks the speaker's own name, so a line
+  addressed *to* someone by name is untouched. `isGenericQuote(quote)` — a deliberately
+  conservative heuristic (short greeting/reaction patterns, gated by a <=6 word count so a longer
+  line that happens to start with "Hi" isn't caught) — flagged to the user as fundamentally less
+  reliable than the string-exact `quoteRevealsAnswer` check, since "generic" is a judgment call
+  no regex can fully make; the real defense against genericness is the prompt instruction, this
+  is a backstop. Applied in three places per the request ("at generation time AND as a
+  post-generation validation pass"): (1) `pipeline.ts` filters scraped candidates before they
+  ever reach the Gemini prompt, (2) `prompts.ts` RULES instructs Gemini directly on both (never
+  select/invent a self-naming quote; exclude greetings/reactions/anything multiple characters
+  would say), (3) `schema.ts`'s `questionItemSchema` gets two more `.refine()` checks, dropping
+  any surviving item per the same lenient per-item validation pattern as the existing
+  duplicate-distractor check.
+  **Ran the validation against the real seeded data** (not just the new pipeline going forward)
+  via `scripts/validate-existing-quotes.ts` (dry-run flag first, inspected the actual flagged
+  quotes before deleting anything real): Breaking Bad 92→90 (2 removed), BoJack Horseman
+  210→200 (10 removed — includes `isGenericQuote` catching `"Hey, BoJack."`), The Office 59→57
+  (2 removed — one catch, `"Happy Birthday to Gabe!"` attributed to Gabe Lewis himself, is very
+  likely a genuine pre-existing misattribution bug this incidentally surfaced, not just a
+  self-reference), Naruto 53→52 (1 removed, the canonical "My name is Uchiha Sasuke" example).
+  15 total across 414 questions (~3.6%). Live-verified post-cleanup: all 4 universes still serve
+  a full 10-question quiz; Naruto's difficulty-3 pool dropped below 3, and `select.ts`'s existing
+  shortfall fallback (built in Task 6) correctly backfilled with an extra options-format question
+  rather than erroring — confirms that fallback path still works, not just that the delete ran.
 - **2026-07-12** — Task 9 follow-up: seven fixes from the user's real browser playtest.
   - **Laggy tap (most urgent)**: `handleAnswer` awaited `POST /api/questions/[id]/check`
     (measured live at 300-800ms) before any visual change — so every tap felt unresponsive by

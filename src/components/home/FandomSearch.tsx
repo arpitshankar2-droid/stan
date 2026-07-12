@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { QuoteSource } from "@prisma/client";
 import { Input } from "@/components/ui/input";
 import { sourceBadge } from "@/lib/source-badge";
+import { fandomPalette } from "@/lib/fandom-palette";
 
 interface Suggestion {
   slug: string;
   name: string;
-  source: QuoteSource | null;
+  scrapedRatio: number;
   status: string;
 }
 
@@ -129,7 +129,8 @@ export function FandomSearch() {
 
           {!searching &&
             suggestions.map((s) => {
-              const badge = sourceBadge(s.source);
+              const badge = sourceBadge(s.scrapedRatio);
+              const palette = fandomPalette(s.slug);
               return (
                 <button
                   key={s.slug}
@@ -137,7 +138,17 @@ export function FandomSearch() {
                   onClick={() => selectExisting(s.slug)}
                   className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors hover:bg-muted"
                 >
-                  <span className="font-display text-lg">{s.name}</span>
+                  <span
+                    className="font-display text-lg"
+                    style={{
+                      backgroundImage: `linear-gradient(105deg, ${palette.from} 10%, ${palette.to} 90%)`,
+                      backgroundClip: "text",
+                      WebkitBackgroundClip: "text",
+                      color: "transparent",
+                    }}
+                  >
+                    {s.name}
+                  </span>
                   <span
                     className={`rounded-full border px-2 py-0.5 text-[0.6rem] font-medium tracking-wide uppercase ${badge.className}`}
                   >

@@ -23,6 +23,50 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Task 7 follow-up: four fixes from the user's live browser review, plus a
+  confirmation that the on-demand build path works end-to-end.
+  - Removed the "ROUND 0/10" eyebrow from the landing hero — that's quiz interstitial chrome
+    (PLAN.md's Neon Arena notes now say so explicitly) and reads as meaningless before a quiz
+    starts.
+  - **Source badges weren't carrying real information**: Breaking Bad (90/92 questions scraped,
+    97.8%) and The Office (44/59, 74.6%) both showed an identical "Mostly Verified" because the
+    badge was keyed off the coarse `Universe.source` enum (`MIXED` for both), not actual yield.
+    Replaced with `src/lib/quiz/source-ratio.ts` (`scrapedRatios()`, a `Question.groupBy` over
+    real per-question `source`) feeding a rewritten `source-badge.ts`: ≥95% scraped → "Verified
+    Quotes", 0% → "AI-Generated" (still styled as a caution per the honesty requirement),
+    anything between shows the real number, e.g. "75% Verified". Wired through both
+    `GET /api/universes` branches (wall + fuzzy search) and the wall's own server-side query, so
+    the search dropdown and the wall badge always agree. Verified against live data: Breaking
+    Bad and BoJack (100%) both now correctly read "Verified Quotes", The Office reads "75%
+    Verified", Naruto reads "AI-Generated" — four different real values, four different badges.
+  - **Per-fandom card palette wasn't shipping** — all three cards used the one brand violet→cyan
+    gradient, so the roster had no fandom identity, undercutting the point of typography-first
+    cards. New `src/lib/fandom-palette.ts`: curated iconic two-stop gradients for known shows
+    (Breaking Bad yellow→green, BoJack pink→purple, The Office blue→gray, Naruto orange→red) and
+    a deterministic slug-hash fallback (stable per fandom, visually distinct from the app's own
+    brand gradient) for anything built on demand and not curated. This wasn't actually specified
+    in PLAN.md before now, despite the ask referencing it — added it to the Neon Arena notes so
+    Tasks 10–11 (FighterCard, OG image) reuse the same system instead of inventing a second one.
+    Applied to both the wall cards and the search dropdown rows for consistency.
+  - Tightened the dead space between the search box and "THE ROSTER": the hero was wrapped in a
+    forced `min-h-[70vh]` flex-center regardless of content height, pushing the roster down by a
+    near-arbitrary amount on any normal viewport. Replaced with ordinary top padding + a fixed
+    `mt-16` before the roster section.
+  - All four fixes live-verified via SSR output against the real DB (not just eyeballed in
+    isolation): confirmed zero "ROUND 0" occurrences, confirmed the four distinct badge values
+    above, confirmed four distinct curated gradient color pairs render for the four seeded/built
+    universes. Re-ran `npm run build` — `/` still correctly shows `ƒ` (dynamic), the Task 7 fix
+    didn't regress.
+  - **Confirmed the on-demand build path end-to-end**: the user's "Naruto" build hung on
+    "Building…" in the UI (expected — `/play/[slug]` is Task 8, doesn't exist yet, so the client
+    has nowhere to redirect once the POST resolves). Queried the DB directly: `naruto` universe
+    is `READY`, `GENERATED`, 53 questions persisted. The full pipeline (resolve → scrape →
+    Gemini → persist) ran and completed correctly server-side despite the dead-end redirect —
+    the gap is purely the missing destination page, not the build path. It now also appears on
+    the roster on refresh, correctly badged "AI-Generated" since Naruto's wiki yielded nothing
+    scrapeable.
+  Not a separate commit-worthy task per PLAN.md's numbering — folded into the Task 7 commit since
+  it's a direct fix pass on that task's deliverable, not new scope.
 - **2026-07-12** — Task 7 done. `src/lib/source-badge.ts` (shared `SCRAPED`→"Verified
   Quotes"/cyan, `MIXED`→"Mostly Verified"/violet, `GENERATED`→"AI-Generated"/gold label+style
   map, reused as-is on the quiz screen in Task 9 per the quoteSource honesty requirement — a

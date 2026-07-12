@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { buildUniverse } from "@/lib/builder/pipeline";
+import { scrapedRatios } from "@/lib/quiz/source-ratio";
 import { apiError } from "@/lib/http";
 
 export const maxDuration = 300; // a fresh build can take several minutes end-to-end
@@ -16,23 +17,38 @@ export async function GET(req: NextRequest) {
       where: { status: "READY" },
       orderBy: { createdAt: "desc" },
       take: 20,
-      select: { slug: true, name: true, source: true, createdAt: true },
+      select: { id: true, slug: true, name: true, createdAt: true },
     });
-    return NextResponse.json({ universes });
+    const ratios = await scrapedRatios(universes.map((u) => u.id));
+    return NextResponse.json({
+      universes: universes.map((u) => ({
+        slug: u.slug,
+        name: u.name,
+        scrapedRatio: ratios.get(u.id) ?? 0,
+      })),
+    });
   }
 
   // pg_trgm similarity search — same matching strategy as the build pipeline's
   // own dedupe, so "what you'd find by typing" matches "what building would
   // have deduped against".
   const universes = await db.$queryRaw<
-    { slug: string; name: string; source: string | null; status: string }[]
+    { id: string; slug: string; name: string; status: string }[]
   >`
-    SELECT slug, name, source, status FROM "Universe"
+    SELECT id, slug, name, status FROM "Universe"
     WHERE similarity(name, ${q}) > 0.2 OR name ILIKE ${"%" + q + "%"}
     ORDER BY similarity(name, ${q}) DESC
     LIMIT 10
   `;
-  return NextResponse.json({ universes });
+  const ratios = await scrapedRatios(universes.map((u) => u.id));
+  return NextResponse.json({
+    universes: universes.map((u) => ({
+      slug: u.slug,
+      name: u.name,
+      status: u.status,
+      scrapedRatio: ratios.get(u.id) ?? 0,
+    })),
+  });
 }
 
 const createSchema = z.object({ name: z.string().trim().min(1).max(100) });

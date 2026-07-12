@@ -252,9 +252,18 @@ Plus a migration enabling `pg_trgm` and a GIN trigram index on `Universe.name` f
   (Archivo/Archivo Expanded or similar) for scores/headings, tight grotesk for UI. Uppercase +
   negative tracking + skew on display elements: broadcast lower-third energy.
 - **Signature moves**: diagonal slash dividers; ROUND N/10 interstitials (Framer Motion
-  slide-smash); draining conic-gradient timer ring; streak meter that charges up; screen-shake +
+  slide-smash) — this is quiz chrome, scoped to the quiz/build-theater screens, not the landing
+  page; draining conic-gradient timer ring; streak meter that charges up; screen-shake +
   red flash on wrong, cyan pulse on right; VS screen for challenges; subtle noise texture so
   black isn't flat. Everything angled ~-2°. No emoji anywhere in the identity.
+- **Per-fandom card palette** (added Task 7): typography-first universe cards use the fandom
+  name itself as the visual identity, so every card can't share the one brand violet→cyan
+  gradient — that reads as "no identity." `src/lib/fandom-palette.ts` curates an iconic two-stop
+  gradient for shows with an instantly-recognizable color (Breaking Bad hazmat yellow→cook
+  green, BoJack pink→Hollywoo purple, The Office Dunder Mifflin blue→paper gray) and falls back
+  to a deterministic hash-picked gradient (stable per slug) for any fandom built on demand that
+  isn't curated. Reuse this for the result FighterCard and OG image (Tasks 10–11) rather than
+  inventing a second palette system.
 - **shadcn** primitives fully retokenized — if it looks like a Tailwind starter, it ships again.
 
 ## 5. Task list (dependency-ordered · ~25h)

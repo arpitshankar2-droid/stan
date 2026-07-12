@@ -30,6 +30,22 @@ export interface ScrapeResult {
   requestsUsed: number;
 }
 
+// Just the fields this file actually reads from MediaWiki's API — not a
+// full response type, since the shape genuinely varies by query.
+interface MediaWikiPage {
+  title?: string;
+  missing?: unknown;
+  revisions?: { slots?: { main?: { "*"?: string } } }[];
+}
+
+interface MediaWikiResponse {
+  query?: {
+    pages?: Record<string, MediaWikiPage>;
+    categorymembers?: { title?: string; ns?: number }[];
+  };
+  continue?: { cmcontinue?: string };
+}
+
 class Budget {
   private used = 0;
   constructor(private readonly max: number) {}
@@ -45,7 +61,11 @@ class Budget {
   }
 }
 
-async function mwGet(host: string, params: Record<string, string>, budget: Budget): Promise<any> {
+async function mwGet(
+  host: string,
+  params: Record<string, string>,
+  budget: Budget,
+): Promise<MediaWikiResponse | null> {
   budget.spend();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -88,7 +108,7 @@ async function categoryMembers(
       budget,
     );
     for (const m of data?.query?.categorymembers ?? []) {
-      if (m.title) members.push({ title: m.title, ns: m.ns });
+      if (m.title) members.push({ title: m.title, ns: m.ns ?? 0 });
     }
     cmcontinue = data?.continue?.cmcontinue;
   } while (cmcontinue && members.length < opts.limit && budget.remaining > 0);
@@ -146,7 +166,7 @@ async function findExistingPages(
   for (const group of chunk(titles, TITLE_BATCH_SIZE)) {
     if (budget.remaining <= 0) break;
     const data = await mwGet(host, { action: "query", titles: group.join("|") }, budget);
-    for (const page of Object.values(data?.query?.pages ?? {}) as any[]) {
+    for (const page of Object.values(data?.query?.pages ?? {}) as MediaWikiPage[]) {
       if (page.missing === undefined && page.title) existing.add(page.title);
     }
   }
@@ -167,7 +187,7 @@ async function fetchWikitext(
       { action: "query", titles: group.join("|"), prop: "revisions", rvprop: "content", rvslots: "main" },
       budget,
     );
-    for (const page of Object.values(data?.query?.pages ?? {}) as any[]) {
+    for (const page of Object.values(data?.query?.pages ?? {}) as MediaWikiPage[]) {
       const text = page?.revisions?.[0]?.slots?.main?.["*"];
       if (typeof text === "string" && page.title) content.set(page.title, text);
     }

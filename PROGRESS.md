@@ -3,6 +3,7 @@
 Rule: every completed task gets a checkbox flip here **and a git commit**. No batching.
 
 ## Status: in progress — plan approved 2026-07-11
+## Live at https://stan-two.vercel.app (Vercel auto-deploys on every push to main)
 
 - [x] 0. Repo bootstrap — git init, PLAN.md, PROGRESS.md, first commit
 - [x] 1. Scaffold — Next 15 + TS + Tailwind + shadcn + Framer Motion, Neon Arena tokens
@@ -23,6 +24,32 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Task 15 (Ship) started, and a big context shift: **STAN is deployed and live
+  at https://stan-two.vercel.app**, set up directly by the user (Vercel account/project creation
+  was outside what I have access to in this environment — confirmed earlier in this session no
+  `.vercel` link or CLI auth existed here). Vercel auto-deploys on every push to `main` now,
+  which changes what a `git push` means for the rest of this project: from here on it's a live
+  production deploy, not just updating a dev branch. Per the earlier three-way decision with the
+  user: same Neon database serves both dev and prod (already fully migrated — this is the exact
+  DB every test this session has run against), and the remaining 11 fandoms are deliberately
+  deferred post-launch rather than rushed through today's Gemini budget — shipping with today's
+  4 (Breaking Bad, BoJack Horseman, The Office, Naruto).
+  - **Found and fixed the ESLint config while doing pre-deploy readiness checks** — it's been
+    broken since the Task 1 scaffold (every build all session showed `⨯ ESLint: Cannot find
+    module 'eslint-config-next/core-web-vitals'`), noted repeatedly as "pre-existing, not fixed
+    here" because it never blocked a build (confirmed: `next build` exits 0 despite the error).
+    Root cause was deeper than the missing `.js` extension it looked like: this
+    `eslint-config-next` version still ships its shareable configs in the legacy eslintrc object
+    shape, not flat-config arrays, so spreading them directly (`...nextVitals`) fails once the
+    import path resolves. Fixed with the standard `create-next-app` `FlatCompat` bridge pattern.
+    **This was the first time ESLint had ever actually run in this project** — ran it for real
+    across the whole codebase and fixed what it found rather than just declaring the config
+    fixed: two `<a href="/">` that should've been `next/link` `<Link>` (`play/[slug]/page.tsx`,
+    `BuildTheater.tsx` — using `<a>` for internal nav forces a full page reload instead of
+    client-side routing), three `any` types in `fandom/scrape.ts` replaced with a minimal
+    `MediaWikiPage`/`MediaWikiResponse` interface describing just the fields actually read (not a
+    full API type — the shape genuinely varies by query), and one stale unused eslint-disable
+    comment. `npx eslint .` and `npx tsc --noEmit` both now exit 0 with zero output.
 - **2026-07-12** — Giphy reaction GIF, follow-up to Task 14's queued item. The real key arrived
   pasted into the git-tracked `.env.example` again (same mistake pattern as Task 2's Neon/Gemini
   credentials) — moved it to `.env.local` before touching git, confirmed `.env.example` matched

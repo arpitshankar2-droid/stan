@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { fandomPalette, fandomGradientStyle } from "@/lib/fandom-palette";
 import { BuildSpinner } from "@/components/play/BuildSpinner";
 import { RotatingStatusLine } from "@/components/play/RotatingStatusLine";
@@ -142,12 +143,12 @@ export function BuildTheater({ slug, initialStatus, initialName, initialFailReas
           >
             {retrying ? "Retrying…" : "Retry"}
           </button>
-          <a
+          <Link
             href="/"
             className="rounded-full border border-border px-6 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Try another fandom
-          </a>
+          </Link>
         </div>
       </div>
     );

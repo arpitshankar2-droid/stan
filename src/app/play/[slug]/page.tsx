@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { BuildTheater } from "@/components/play/BuildTheater";
 
@@ -18,9 +19,9 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
       {!universe ? (
         <div className="flex flex-col items-center gap-4 text-center">
           <h1 className="font-display text-3xl text-muted-foreground">No such fandom yet</h1>
-          <a href="/" className="text-sm text-arena-cyan underline underline-offset-4">
+          <Link href="/" className="text-sm text-arena-cyan underline underline-offset-4">
             Go build one
-          </a>
+          </Link>
         </div>
       ) : (
         <BuildTheater

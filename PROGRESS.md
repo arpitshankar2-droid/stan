@@ -13,7 +13,7 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 6. API routes — universes search/create/status, results grade/get, quiz selection
 - [x] 7. Home page — hero, search + suggestions, universe wall
 - [x] 8. Build theater — polling screen, rotating status lines, fail/retry
-- [ ] 9. Quiz UI — QuestionCard, 15s TimerRing, StreakMeter, reveals, interstitials
+- [x] 9. Quiz UI — QuestionCard, 15s TimerRing, StreakMeter, reveals, interstitials
 - [ ] 10. Result reveal — tiers, name prompt, FighterCard with roast
 - [ ] 11. OG image — next/og card for link previews
 - [ ] 12. Challenge flow — /c/[id], fresh-set quiz, VS compare
@@ -23,6 +23,94 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — AGENTS.md provenance, investigated on request. Landed in the Task 1 scaffold
+  commit (`dbad9b3`), authored under the user's own git identity with `Co-Authored-By: Claude
+  Fable 5` — i.e. it came in during the very first scaffold pass, before Sonnet 5 took over this
+  build. Its content is wrapped in `<!-- BEGIN:nextjs-agent-rules -->`/`<!-- END -->` markers,
+  which reads like auto-inserted boilerplate rather than hand-typed prose, but grepping
+  `node_modules` for the exact string found nothing installed that ships it — so the specific
+  tool that injected it (if any) couldn't be pinned down. What's certain: the claim is false
+  (verified two entries ago — no `docs/` dir, stock Next 15.5.20), and nothing in this session
+  has acted on it. Left as-is; the user will decide whether to remove it.
+- **2026-07-12** — Palette hardening, on request after a re-verification request. The Task 7
+  fix was already shipped and re-confirmed correct via a second live SSR check (still 4 distinct
+  gradient pairs, matching `28fb1a0`) — the user's "still isn't shipping" was almost certainly
+  against the pre-fix browser session. While in the code anyway: added
+  `-webkit-text-fill-color: transparent` everywhere gradient text renders (the actual property
+  Safari needs for `background-clip: text` — `color: transparent` alone isn't reliable there,
+  a real cross-browser gap the earlier version had even though it happened to test fine via
+  curl/grep), and factored the repeated 6-line style object into `fandomGradientStyle()` in
+  `fandom-palette.ts`, used by `UniverseWall`, `FandomSearch`, and `BuildTheater` alike.
+- **2026-07-12** — Task 9 done. Quiz UI at `/play/[slug]`, replacing the ready-state placeholder
+  from Task 8.
+  - **New scope, not previously in PLAN.md**: the hard-tier "duel" format (two options instead
+    of four, framed as a VS clash) was introduced this session, not carried over from planning.
+    Added to PLAN.md's core loop and `Question` schema notes so it's recorded as a real decision,
+    not just code that showed up.
+  - **Distractor ranking, not a random pick**: the user flagged that picking a random distractor
+    for duels was a shortcut worth fixing immediately, since it's the difference between duels
+    being genuinely harder vs. cosmetically different. Added `hardestDistractor` to the
+    generation prompt (`prompts.ts`) and the per-question schema (`schema.ts`, nullish — an
+    item missing it is still fully usable in four-option mode, matching the established lenient-
+    validation philosophy), a new `Question.duelDistractor` column (migration
+    `20260712092533_add_duel_distractor` — **had to hand-edit the generated migration.sql**,
+    since Prisma's diff saw the hand-added `pg_trgm` trigram index as unrecognized drift and
+    planned to `DROP INDEX "Universe_name_trgm_idx"`; stripped that statement, applied via
+    `migrate deploy`, then directly queried `pg_indexes` post-apply to confirm the index
+    survived — same non-interactive `--create-only` + `deploy` pattern documented after Task 2,
+    now with an explicit "read the generated SQL before applying" step added given what it
+    almost did). `pipeline.ts` fuzzy-matches Gemini's returned string against the question's own
+    3 distractors (case/whitespace-insensitive) before trusting it, since Gemini occasionally
+    paraphrases rather than echoing verbatim — an unmatched value stores `null`, not an invented
+    string. `formatQuestionForClient` (`quiz/duel.ts`) picks `duelDistractor` when present, a
+    random distractor otherwise (existing seeded universes predate this field, so their duels
+    run on the fallback until rebuilt — confirmed live: all of BoJack's difficulty-3 rows have
+    `duelDistractor: null` right now). **Not yet live-verified against a real Gemini call** —
+    today's quota is exhausted (confirmed for real in Task 8), so the new prompt field's actual
+    output quality is unverified until a future rebuild; the fallback path is what's live-tested
+    below.
+  - **New endpoint, not scope creep**: `POST /api/questions/[id]/check` reveals correctness (and
+    the real answer) for one question, only after the player commits a guess. This was necessary,
+    not optional — the existing architecture only grades in a batch at final submission (correct
+    by design, so the client never has answers *beforehand*), but the approved layout promises an
+    immediate tap-to-reveal flash, which needs per-question correctness at the moment of
+    answering. This endpoint is pure UX convenience — `POST /api/results` still recomputes the
+    authoritative grade from the DB independently, exactly as before, so nothing about the
+    security posture changed.
+  - Components: `TimerRing` (SVG, CSS-transition drain, no per-frame JS — determinate version of
+    Task 8's `BuildSpinner`, same visual language), `StreakMeter`, `RoundHeader` (round label +
+    palette underline + the honest `scrapedRatio` source badge, now also fixed on this endpoint —
+    `GET /api/universes/[slug]` was still returning the raw `source` enum instead of the Task 7
+    ratio fix; caught and corrected here), `QuestionCard` (four-option, options stay plain
+    foreground text on purpose — reveal colors need to read unambiguously against whatever the
+    fandom palette is), `DuelCard` (two-option, VS badge absolutely centered on the container so
+    it survives the mobile stack per the user's explicit note, opposing ∓2° rotation and
+    overlap-margin applied unconditionally rather than only at the sm+ breakpoint), and `Quiz.tsx`
+    orchestrating question flow, scoring, streak, and final submission to `/r/[id]` (Task 10,
+    doesn't exist yet — same accepted gap as `/play/[slug]` existing before Task 8).
+  - Palette applied throughout per the user's explicit requirement: quote card border + faint
+    tint, TimerRing gradient, round-header underline, StreakMeter fill, and duel fighter names
+    all pull from `fandomPalette(slug)`; reveal colors (cyan/red) and the source badge stay fixed
+    regardless of fandom, deliberately — described to the user as a concrete list before writing
+    any component and built exactly to that list.
+  - **Live-fired a full 10-question playthrough end-to-end**, not just typechecked: fetched a
+    real quiz (BoJack, confirmed 7 options-format + 3 duel-format questions matching the 3/4/3
+    curve), called `/check` for both a wrong and correct pick on the same question and confirmed
+    both graded correctly, submitted a scripted alternating-correct/wrong run through
+    `POST /api/results` and got back the exact expected `score: 5`, then confirmed via
+    `GET /api/results/[id]` that the stored tier/roast were sensible. Separately ran an
+    all-timeout submission (every answer the `"(no answer)"` sentinel) and confirmed it graded
+    `0/10` cleanly rather than 400ing on zod's `min(1)` — this was a real bug caught before it
+    shipped: an earlier draft used `picked: ""` for timeouts, which fails `z.string().min(1)` in
+    both `/check` and `/results`.
+  - **Known gap, same pattern as Tasks 7-8**: no browser automation tool in this environment, so
+    the actual client-side rendering — the duel's mobile clash treatment (rotation + centered VS
+    badge surviving the stacked layout), the timer ring's visual drain, the shake animation, and
+    the palette actually appearing on the live quote card/chrome — was verified by code review
+    and by confirming every API response and CSS rule it depends on, not by loading the page in a
+    browser. This is the task where that gap matters most so far, since the mobile-duel "still
+    feels like a confrontation" requirement is fundamentally a visual judgment call. Flagging
+    explicitly rather than claiming it renders as designed.
 - **2026-07-12** — Task 8 done. Build theater at `/play/[slug]`.
   - **Noted, not acted on**: AGENTS.md instructs reading `node_modules/next/dist/docs/` before
     writing code, citing breaking API changes vs. training data. Checked before touching the

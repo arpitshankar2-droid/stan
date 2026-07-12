@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { selectQuizQuestions } from "@/lib/quiz/select";
+import { formatQuestionForClient } from "@/lib/quiz/duel";
+import { scrapedRatios } from "@/lib/quiz/source-ratio";
 import { apiError } from "@/lib/http";
 
 // GET /api/universes/[slug]?exclude=id1,id2  — build status, and the quiz
@@ -22,6 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
 
   const exclude = (req.nextUrl.searchParams.get("exclude") ?? "").split(",").filter(Boolean);
   const questions = await selectQuizQuestions(universe.id, exclude);
+  const ratios = await scrapedRatios([universe.id]);
 
   return NextResponse.json({
     status: "ready",
@@ -29,15 +32,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
       id: universe.id,
       slug: universe.slug,
       name: universe.name,
-      source: universe.source,
+      scrapedRatio: ratios.get(universe.id) ?? 0,
     },
     quiz: {
-      questions: questions.map((q) => ({
-        id: q.id,
-        quote: q.quote,
-        options: q.options,
-        context: q.context,
-      })),
+      questions: questions.map(formatQuestionForClient),
     },
   });
 }

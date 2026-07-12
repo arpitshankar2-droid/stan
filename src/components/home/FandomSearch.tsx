@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { sourceBadge } from "@/lib/source-badge";
-import { fandomPalette } from "@/lib/fandom-palette";
+import { fandomPalette, fandomGradientStyle } from "@/lib/fandom-palette";
 
 interface Suggestion {
   slug: string;
@@ -138,15 +138,7 @@ export function FandomSearch() {
                   onClick={() => selectExisting(s.slug)}
                   className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors hover:bg-muted"
                 >
-                  <span
-                    className="font-display text-lg"
-                    style={{
-                      backgroundImage: `linear-gradient(105deg, ${palette.from} 10%, ${palette.to} 90%)`,
-                      backgroundClip: "text",
-                      WebkitBackgroundClip: "text",
-                      color: "transparent",
-                    }}
-                  >
+                  <span className="font-display text-lg" style={fandomGradientStyle(palette)}>
                     {s.name}
                   </span>
                   <span

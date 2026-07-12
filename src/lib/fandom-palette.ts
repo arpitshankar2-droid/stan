@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 // Typography-first cards mean the fandom name IS the visual identity — so it
 // can't all be the same violet→cyan brand gradient, or every card looks the
 // same. Curated for shows with an iconic, instantly-recognizable color (a
@@ -36,4 +38,18 @@ function hashSlug(slug: string): number {
 
 export function fandomPalette(slug: string): FandomPalette {
   return CURATED[slug] ?? FALLBACK_PALETTES[hashSlug(slug) % FALLBACK_PALETTES.length];
+}
+
+// Shared gradient-text style so every place that renders a fandom name looks
+// the same and stays correct — -webkit-text-fill-color is the idiom Safari
+// actually needs for background-clip:text; color:transparent alone isn't
+// reliable across browsers.
+export function fandomGradientStyle(palette: FandomPalette): CSSProperties {
+  return {
+    backgroundImage: `linear-gradient(105deg, ${palette.from} 10%, ${palette.to} 90%)`,
+    backgroundClip: "text",
+    WebkitBackgroundClip: "text",
+    color: "transparent",
+    WebkitTextFillColor: "transparent",
+  };
 }

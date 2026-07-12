@@ -169,16 +169,27 @@ async function runBuild(universeId: string, slug: string, displayName: string): 
       parse: parseUniversePayload,
     });
 
-    const rows = payload.questions.map((q) => ({
-      universeId,
-      quote: q.quote,
-      answer: q.answer,
-      options: shuffle([q.answer, ...q.distractors]),
-      difficulty: q.difficulty,
-      source: (q.fromProvided ? "SCRAPED" : "GENERATED") as QuoteSource,
-      context: q.context ?? null,
-      quoteHash: quoteHash(q.quote),
-    }));
+    const rows = payload.questions.map((q) => {
+      // Only trust hardestDistractor if it actually names one of this
+      // question's own distractors — Gemini occasionally paraphrases rather
+      // than echoing the string verbatim, and an invented value would make
+      // duel mode show an option that was never a real distractor.
+      const duelDistractor =
+        q.hardestDistractor &&
+        q.distractors.find((d) => d.trim().toLowerCase() === q.hardestDistractor!.trim().toLowerCase());
+
+      return {
+        universeId,
+        quote: q.quote,
+        answer: q.answer,
+        options: shuffle([q.answer, ...q.distractors]),
+        duelDistractor: duelDistractor || null,
+        difficulty: q.difficulty,
+        source: (q.fromProvided ? "SCRAPED" : "GENERATED") as QuoteSource,
+        context: q.context ?? null,
+        quoteHash: quoteHash(q.quote),
+      };
+    });
 
     const seen = new Set<string>();
     const deduped = rows.filter((r) => (seen.has(r.quoteHash) ? false : (seen.add(r.quoteHash), true)));

@@ -14,6 +14,11 @@ const questionItemSchema = z
     quote: z.string().min(4),
     answer: z.string().min(1),
     distractors: z.array(z.string().min(1)).length(3),
+    // Nullish, not required: if Gemini omits it on a given item, the question
+    // is still perfectly usable in four-option mode — pipeline.ts falls back
+    // to picking a random distractor for duel mode on that one question
+    // rather than dropping an otherwise-good item over a missing ranking.
+    hardestDistractor: z.string().min(1).nullish(),
     difficulty: z.number().int().min(1).max(3),
     context: z.string().nullish(),
     fromProvided: z.boolean(),
@@ -108,6 +113,7 @@ export const universeResponseSchema: Schema = {
           quote: { type: Type.STRING },
           answer: { type: Type.STRING },
           distractors: { type: Type.ARRAY, items: { type: Type.STRING } },
+          hardestDistractor: { type: Type.STRING },
           difficulty: { type: Type.INTEGER },
           context: { type: Type.STRING },
           fromProvided: { type: Type.BOOLEAN },

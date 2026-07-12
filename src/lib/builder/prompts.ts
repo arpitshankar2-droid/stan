@@ -21,6 +21,11 @@ material genuinely cannot support it):
   If a character goes by more than one name (a legal name and an alias, a nickname), pick ONE
   canonical name for them and use it consistently everywhere they appear as an answer or
   distractor — never list the same person twice under different names in one question's options.
+- "hardestDistractor" — of your 3 distractors, name the ONE a genuine fan would be most likely to
+  second-guess against the real answer: closest in personality, role, voice, or the scene itself,
+  not just "another character from the show." This string must exactly match one of the entries
+  in "distractors". Used to power a harder two-option "duel" mode for this question — pick for
+  real difficulty, not arbitrarily.
 - "difficulty": 1 = iconic catchphrase any casual fan knows; 2 = memorable line a genuine fan
   places; 3 = deep cut — one-off lines, minor characters, early/late seasons. Aim for roughly
   18 easy / 22 medium / 15 hard.

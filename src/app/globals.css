@@ -159,6 +159,7 @@
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
+  -webkit-text-fill-color: transparent;
 }
 
 @utility text-glow-violet {
@@ -180,4 +181,29 @@
 
 @utility clip-slash-both {
   clip-path: polygon(0.9em 0, 100% 0, calc(100% - 0.9em) 100%, 0 100%);
+}
+
+/* wrong-answer feedback: quick horizontal rattle, not a full page shake */
+@keyframes shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
+}
+
+@utility animate-shake {
+  animation: shake 0.4s ease-in-out;
 }

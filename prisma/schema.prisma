@@ -38,16 +38,22 @@ model Universe {
 }
 
 model Question {
-  id         String      @id @default(cuid())
-  universeId String
-  universe   Universe    @relation(fields: [universeId], references: [id], onDelete: Cascade)
-  quote      String
-  answer     String
-  options    String[]
-  difficulty Int
-  source     QuoteSource
-  context    String?
-  quoteHash  String
+  id             String      @id @default(cuid())
+  universeId     String
+  universe       Universe    @relation(fields: [universeId], references: [id], onDelete: Cascade)
+  quote          String
+  answer         String
+  options        String[]
+  // The distractor Gemini ranked most confusable with the answer, for the
+  // hard-tier "duel" quiz format (answer + this one, not a random pick from
+  // the 3). Null on questions generated before this field existed, or on the
+  // rare item where Gemini's ranking didn't match any of its own distractors
+  // — duel serving falls back to a random distractor in that case.
+  duelDistractor String?
+  difficulty     Int
+  source         QuoteSource
+  context        String?
+  quoteHash      String
 
   @@unique([universeId, quoteHash])
   @@index([universeId, difficulty])

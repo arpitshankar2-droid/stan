@@ -27,7 +27,10 @@ Home ── type fandom ──▸ fuzzy match against existing universes
    │                  miss: POST /api/universes  ─▸ build pipeline (scrape ─▸ 1 LLM call ─▸ persist)
    │                        │  client polls status on the "build theater" screen
    ▼                        ▼
- Quiz: 10 questions, 15s timer each, streak counter, difficulty curve (3 easy / 4 mid / 3 hard)
+ Quiz: 10 questions, 15s timer each, streak counter, difficulty curve (3 easy / 4 mid / 3 hard).
+ Easy/mid render as standard four-option; the 3 hard questions render as a two-option "duel"
+ (answer vs. Gemini's ranked most-confusable distractor — see Question.duelDistractor above),
+ added Task 9 so the hard tier is a genuinely harder format, not just harder trivia in the same UI.
    ▼
  POST answers ─▸ server grades from DB ─▸ Result row (score, tier, roast line)
    ▼
@@ -210,16 +213,17 @@ model Universe {
 }
 
 model Question {
-  id         String      @id @default(cuid())
-  universeId String
-  universe   Universe    @relation(fields: [universeId], references: [id], onDelete: Cascade)
-  quote      String
-  answer     String      // character name
-  options    String[]    // 4, includes answer, pre-shuffled
-  difficulty Int         // 1 easy · 2 mid · 3 hard
-  source     QuoteSource
-  context    String?     // shown on reveal ("S3E4, the underwater episode")
-  quoteHash  String      // sha1(normalized quote) — dedupe
+  id             String      @id @default(cuid())
+  universeId     String
+  universe       Universe    @relation(fields: [universeId], references: [id], onDelete: Cascade)
+  quote          String
+  answer         String      // character name
+  options        String[]    // 4, includes answer, pre-shuffled
+  duelDistractor String?     // added Task 9 — Gemini's ranked "most confusable" distractor
+  difficulty     Int         // 1 easy · 2 mid · 3 hard
+  source         QuoteSource
+  context        String?     // shown on reveal ("S3E4, the underwater episode")
+  quoteHash      String      // sha1(normalized quote) — dedupe
   @@unique([universeId, quoteHash])
   @@index([universeId, difficulty])
 }

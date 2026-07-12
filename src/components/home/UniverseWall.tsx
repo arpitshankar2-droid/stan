@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { sourceBadge } from "@/lib/source-badge";
-import { fandomPalette } from "@/lib/fandom-palette";
+import { fandomPalette, fandomGradientStyle } from "@/lib/fandom-palette";
 
 export interface WallUniverse {
   slug: string;
@@ -35,15 +35,7 @@ function UniverseCard({ universe }: { universe: WallUniverse }) {
       href={`/play/${universe.slug}`}
       className="group flex flex-col gap-3 rounded-xl bg-card p-5 ring-1 ring-foreground/10 transition-all hover:-translate-y-0.5 hover:-rotate-1 hover:ring-arena-violet-hot/50"
     >
-      <span
-        className="font-display text-2xl leading-tight"
-        style={{
-          backgroundImage: `linear-gradient(105deg, ${palette.from} 10%, ${palette.to} 90%)`,
-          backgroundClip: "text",
-          WebkitBackgroundClip: "text",
-          color: "transparent",
-        }}
-      >
+      <span className="font-display text-2xl leading-tight" style={fandomGradientStyle(palette)}>
         {universe.name}
       </span>
       <span

@@ -23,6 +23,20 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 
 ## Log
 
+- **2026-07-12** — Giphy reaction GIF, follow-up to Task 14's queued item. The real key arrived
+  pasted into the git-tracked `.env.example` again (same mistake pattern as Task 2's Neon/Gemini
+  credentials) — moved it to `.env.local` before touching git, confirmed `.env.example` matched
+  the already-committed placeholder with zero diff before proceeding. New `src/lib/giphy.ts`:
+  `fetchReactionGif(accuracy)` buckets the result into a mood term (not the literal tier name —
+  tier names are fandom-flavored and often too specific to search well, e.g. "Diane's
+  Ghostwriter") and searches Giphy server-side, key never touching the client. Purely decorative
+  — every failure path (missing key, API error, empty results) returns `null` rather than
+  throwing, so a Giphy outage can never break the result page. Wired into `/r/[id]/page.tsx` at
+  the very bottom per the request ("at the end of result"), `alt=""` since it's decorative mood
+  flavor, not information the page depends on conveying. Live-verified the key against the real
+  API first, then fetched and **actually looked at** two real results (a 70% and a 0% score) —
+  genuinely on-mood both times (a satisfied Jim Halpert smirk for the win, a shocked cartoon cat
+  captioned "the silence after that was loud" for the fail), not just "an image loaded."
 - **2026-07-12** — Task 14 done. Polish pass, driven by a concrete codebase audit rather than
   generic busywork — grepped for what PLAN.md's checklist items actually implied and only fixed
   real gaps found:

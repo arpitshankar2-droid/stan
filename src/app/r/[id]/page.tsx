@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getResultViewData } from "@/lib/result-data";
+import { fetchReactionGif } from "@/lib/giphy";
 import { fandomGradientStyle } from "@/lib/fandom-palette";
 import { ShareActions } from "@/components/result/ShareActions";
 import { DownloadCardButton } from "@/components/result/DownloadCardButton";
@@ -44,6 +45,7 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
 
   const { palette, badge, parent } = data;
   const gradient = `linear-gradient(105deg, ${palette.from} 10%, ${palette.to} 90%)`;
+  const reactionGif = await fetchReactionGif(data.accuracy);
 
   return (
     <main className="relative flex flex-1 flex-col items-center overflow-hidden px-4 py-10 sm:px-6">
@@ -129,6 +131,17 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
         <Link href="/" className="mt-2 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
           Play another fandom
         </Link>
+
+        {reactionGif && (
+          // eslint-disable-next-line @next/next/no-img-element -- external Giphy URL, not a local asset
+          <img
+            src={reactionGif.url}
+            width={reactionGif.width}
+            height={reactionGif.height}
+            alt=""
+            className="mt-4 rounded-xl"
+          />
+        )}
       </div>
     </main>
   );

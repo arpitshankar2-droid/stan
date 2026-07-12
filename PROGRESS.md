@@ -18,11 +18,66 @@ Rule: every completed task gets a checkbox flip here **and a git commit**. No ba
 - [x] 11. OG image — next/og card for link previews
 - [x] 12. Challenge flow — /c/[id], fresh-set quiz, VS compare
 - [x] 13. MCP server — /api/mcp via mcp-handler, 6 tools, docs/mcp.md
-- [ ] 14. Polish — motion, empty/error states, a11y, reduced-motion
+- [x] 14. Polish — motion, empty/error states, a11y, reduced-motion
 - [ ] 15. Ship — GitHub + Vercel + prod migration + seed 15 fandoms + prod smoke test
 
 ## Log
 
+- **2026-07-12** — Task 14 done. Polish pass, driven by a concrete codebase audit rather than
+  generic busywork — grepped for what PLAN.md's checklist items actually implied and only fixed
+  real gaps found:
+  - **Reduced-motion wasn't honored anywhere** (`grep prefers-reduced-motion` → zero hits, despite
+    PLAN.md calling this out explicitly). Fixed at two levels since one mechanism doesn't cover
+    both: a global CSS media query in `globals.css` collapses all CSS `animation`/`transition`
+    durations near-instant (covers the shake, pulse-glow, BuildSpinner/TimerRing conic loops, all
+    hover states — the TimerRing's countdown still reads correctly since the number inside it,
+    not the drain animation, is the real source of truth) — and a new `MotionProvider.tsx`
+    (`MotionConfig reducedMotion="user"`, a dedicated client boundary so the root layout doesn't
+    have to become `"use client"` and lose server rendering for the whole tree) for Framer
+    Motion, which doesn't use CSS transitions and wouldn't have been covered by the CSS rule
+    alone.
+  - **No consistent keyboard focus state** — 9 files have hand-rolled `<button>` elements, only 2
+    had any `focus-visible` styling. Fixed once, globally, in `globals.css`'s base layer
+    (`button/a/input/[role=button]:focus-visible`) rather than repeating a focus-ring class
+    across 9+ component files.
+  - **Real silent-failure bug**: if `POST /api/results` failed (network error, or a non-ok
+    response) after a full 10-question quiz, the player was left on the name-entry screen with
+    zero feedback — no error, no retry, submit button just silently re-enabled. Losing a
+    completed quiz's result is expensive to redo; fixed by adding an `error` state to
+    `Quiz.tsx`/`NamePrompt.tsx` that surfaces a real message and lets the player retry the exact
+    same submission (their typed name/answers are still in memory, nothing lost).
+  - **PLAN.md's "ROUND N/10 interstitials (Framer Motion slide-smash)" signature move was never
+    actually built** — questions swapped instantly with no transition since Task 9. Added a
+    Framer Motion `AnimatePresence`/`motion.div` slide transition (keyed by question id) around
+    the quote card + options; automatically respects reduced-motion via `MotionProvider` with no
+    extra code.
+  - **`Skeleton` component installed in Task 1, never used anywhere until now** — `FandomSearch`'s
+    "Searching…" plain-text state replaced with skeleton rows shaped like the real suggestion
+    rows that follow.
+  - **Lighthouse sanity — honest limitation, not skipped silently**: no browser/Chrome DevTools
+    access in this environment, so a real Lighthouse run isn't possible. Did proxy checks
+    instead: no raw `<img>` tags anywhere in the app (so no missing-alt risk), icon-only buttons
+    (`ReportButton`'s flag icon) have `aria-label`s, all interactive elements are real
+    `<button>`/`<input>`/`<a>` tags (not clickable `<div>`s), fonts are self-hosted via
+    `next/font` (no render-blocking external font request), `lang="en"` is set. Flagging this as
+    a structural check, not a substitute for an actual Lighthouse score.
+  - **Mid-task addition, requested directly**: "Challenge someone" was a plain navigation link
+    into `/c/[id]`; changed to a share action (Web Share API + clipboard fallback, reusing and
+    generalizing `ShareActions.tsx` with a new `text`/`variant` prop) so clicking it copies the
+    link together with a message — "{name} challenged you on {universe}. Think you're the bigger
+    stan?" (cleaned up from the literal request's "are you better stan him?" to reuse the
+    established "bigger stan" phrase already used elsewhere in the app's copy, noted here rather
+    than silently changed).
+  - **Queued, not done**: a Giphy reaction GIF at the bottom of the result page was requested
+    mid-task. No real API key was provided (the message said one exists but didn't include the
+    value) — added a `GIPHY_API_KEY` placeholder to `.env.example` and asked for the real key
+    before wiring anything, rather than fabricating an untestable integration. Picking this back
+    up once the key arrives.
+  - Live-verified: full rebuild clean, dev server smoke-tested (home page, search, a result page)
+    with no console/server errors, the new challenge-share copy confirmed present in the actual
+    page payload, and a fresh scripted 10-question playthrough (Breaking Bad, 8/10) still returns
+    the exact expected score post-changes — the error-handling and motion additions didn't
+    regress the core loop.
 - **2026-07-12** — Task 13 done. MCP server, 6 tools, `docs/mcp.md`.
   - **Resolved a real discrepancy between PLAN.md's literal path and how the package actually
     works**, checked directly against installed source rather than assumed: `mcp-handler`'s

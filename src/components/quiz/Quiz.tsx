@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import type { FandomPalette } from "@/lib/fandom-palette";
 import type { ClientQuestion } from "@/lib/quiz/duel";
 import { RoundHeader } from "@/components/quiz/RoundHeader";
@@ -45,12 +46,14 @@ export function Quiz({ universeId, palette, questions, challengeOf }: Props) {
   const [questionStart, setQuestionStart] = useState(() => Date.now());
   const [phase, setPhase] = useState<"quiz" | "naming">("quiz");
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const question = questions[index];
 
   const finish = useCallback(
     async (finalAnswers: SubmittedAnswer[], name: string | null) => {
       setSubmitting(true);
+      setSubmitError(null);
       try {
         const res = await fetch("/api/results", {
           method: "POST",
@@ -60,7 +63,14 @@ export function Quiz({ universeId, palette, questions, challengeOf }: Props) {
         const data = await res.json();
         if (res.ok && data.id) {
           router.push(`/r/${data.id}`);
+          return;
         }
+        // A completed 10-question quiz is expensive to redo — surface this
+        // and let the player retry the same submission, don't just reset
+        // silently back to an enabled button with no explanation.
+        setSubmitError(data.error ?? "Couldn't save your result. Try again.");
+      } catch {
+        setSubmitError("Couldn't save your result — check your connection and try again.");
       } finally {
         setSubmitting(false);
       }
@@ -123,6 +133,7 @@ export function Quiz({ universeId, palette, questions, challengeOf }: Props) {
         score={score}
         total={questions.length}
         submitting={submitting}
+        error={submitError}
         onSubmit={(name) => finish(answers, name)}
       />
     );
@@ -142,28 +153,39 @@ export function Quiz({ universeId, palette, questions, challengeOf }: Props) {
         onExpire={handleTimeout}
       />
 
-      <div
-        className="relative w-full max-w-lg rounded-2xl p-[1.5px]"
-        style={{ background: `linear-gradient(105deg, ${palette.from}, ${palette.to})` }}
-      >
-        <div
-          className="rounded-2xl px-6 py-10 text-center"
-          style={{ background: `color-mix(in oklch, ${palette.from} 6%, var(--card))` }}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={question.id}
+          initial={{ opacity: 0, x: 48 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -48 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className="flex w-full flex-col items-center gap-5"
         >
-          <p className="text-2xl leading-snug italic">&ldquo;{question.quote}&rdquo;</p>
-        </div>
-        <div className="absolute top-2 right-2">
-          <ReportButton key={question.id} questionId={question.id} />
-        </div>
-      </div>
+          <div
+            className="relative w-full max-w-lg rounded-2xl p-[1.5px]"
+            style={{ background: `linear-gradient(105deg, ${palette.from}, ${palette.to})` }}
+          >
+            <div
+              className="rounded-2xl px-6 py-10 text-center"
+              style={{ background: `color-mix(in oklch, ${palette.from} 6%, var(--card))` }}
+            >
+              <p className="text-2xl leading-snug italic">&ldquo;{question.quote}&rdquo;</p>
+            </div>
+            <div className="absolute top-2 right-2">
+              <ReportButton questionId={question.id} />
+            </div>
+          </div>
 
-      {question.format === "duel" ? (
-        <DuelCard options={question.options} palette={palette} picked={picked} reveal={reveal} onPick={handleAnswer} />
-      ) : (
-        <QuestionCard options={question.options} picked={picked} reveal={reveal} onPick={handleAnswer} />
-      )}
+          {question.format === "duel" ? (
+            <DuelCard options={question.options} palette={palette} picked={picked} reveal={reveal} onPick={handleAnswer} />
+          ) : (
+            <QuestionCard options={question.options} picked={picked} reveal={reveal} onPick={handleAnswer} />
+          )}
 
-      {reveal && question.context && <p className="text-xs text-muted-foreground">{question.context}</p>}
+          {reveal && question.context && <p className="text-xs text-muted-foreground">{question.context}</p>}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

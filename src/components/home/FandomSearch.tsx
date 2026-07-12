@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { sourceBadge } from "@/lib/source-badge";
 import { fandomPalette, fandomGradientStyle } from "@/lib/fandom-palette";
 
@@ -125,7 +126,16 @@ export function FandomSearch() {
 
       {showDropdown && (
         <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-2xl bg-popover ring-1 ring-foreground/10 shadow-xl">
-          {searching && <p className="px-5 py-3 text-sm text-muted-foreground">Searching…</p>}
+          {searching && (
+            <div className="flex flex-col gap-3 px-5 py-3">
+              {[0, 1].map((i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-20 rounded-full" />
+                </div>
+              ))}
+            </div>
+          )}
 
           {!searching &&
             suggestions.map((s) => {

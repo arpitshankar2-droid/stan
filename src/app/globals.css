@@ -118,6 +118,18 @@
     color: #fff;
   }
 
+  /* Every custom button/link across the app relies on this instead of a
+     per-component focus-visible class — one visible, on-brand keyboard
+     focus ring, guaranteed consistent, without touching every file that
+     has a <button>. */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--arena-violet-hot);
+    outline-offset: 2px;
+  }
+
   /* grain so the black never reads flat */
   body::before {
     content: "";
@@ -128,6 +140,25 @@
     opacity: 0.05;
     mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/* Covers every CSS animation/transition in one place (the shake, the
+   pulse-glow, the BuildSpinner/TimerRing conic-gradient loops, hover
+   states) rather than gating each one individually — the standard broad
+   pattern for honoring the OS reduced-motion preference. The TimerRing's
+   countdown still reads correctly with this on: the number inside it is
+   the real source of truth, not the drain animation. Framer Motion
+   (RotatingStatusLine's cross-fade) doesn't use CSS transitions, so it's
+   handled separately via MotionConfig in layout.tsx. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

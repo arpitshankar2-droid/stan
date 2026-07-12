@@ -117,12 +117,13 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
             scrapedRatio={data.scrapedRatio}
             palette={palette}
           />
-          <Link
-            href={`/c/${data.id}`}
-            className="rounded-full border border-arena-danger/40 px-6 py-2.5 text-sm text-arena-danger transition-colors hover:bg-arena-danger/10"
-          >
-            Challenge someone
-          </Link>
+          <ShareActions
+            path={`/c/${data.id}`}
+            title={`${data.playerName ?? "Someone"} challenged you on ${data.universeName}`}
+            text={`${data.playerName ?? "Someone"} challenged you on ${data.universeName}. Think you're the bigger stan?`}
+            label="Challenge someone"
+            variant="outline-danger"
+          />
         </div>
 
         <Link href="/" className="mt-2 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">

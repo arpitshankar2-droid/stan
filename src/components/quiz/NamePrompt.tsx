@@ -8,12 +8,13 @@ interface Props {
   score: number;
   total: number;
   submitting: boolean;
+  error: string | null;
   onSubmit: (name: string | null) => void;
 }
 
 // PLAN.md: player name is "optional, asked at reveal" — this is that gap,
 // between the last question resolving and the /r/[id] page existing.
-export function NamePrompt({ palette, score, total, submitting, onSubmit }: Props) {
+export function NamePrompt({ palette, score, total, submitting, error, onSubmit }: Props) {
   const [name, setName] = useState("");
 
   function handleSubmit(e: FormEvent) {
@@ -45,7 +46,7 @@ export function NamePrompt({ palette, score, total, submitting, onSubmit }: Prop
           disabled={submitting}
           className="font-display w-full rounded-full bg-arena-gradient px-6 py-3 text-sm text-primary-foreground disabled:opacity-50"
         >
-          {submitting ? "Loading…" : "See my results"}
+          {submitting ? "Loading…" : error ? "Try again" : "See my results"}
         </button>
         <button
           type="button"
@@ -56,6 +57,7 @@ export function NamePrompt({ palette, score, total, submitting, onSubmit }: Prop
           Skip
         </button>
       </form>
+      {error && <p className="text-xs text-arena-danger">{error}</p>}
     </div>
   );
 }

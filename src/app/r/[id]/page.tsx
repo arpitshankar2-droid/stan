@@ -85,6 +85,11 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
 
         <p className="max-w-sm text-lg leading-snug italic">&ldquo;{data.roast}&rdquo;</p>
 
+        {reactionGif && (
+          // eslint-disable-next-line @next/next/no-img-element -- external Giphy URL, not a local asset
+          <img src={reactionGif.url} width={reactionGif.width} height={reactionGif.height} alt="" className="rounded-xl" />
+        )}
+
         <div className="mt-2 flex w-full justify-center gap-8">
           {[
             { label: "Accuracy", value: `${data.accuracy}%` },
@@ -131,17 +136,6 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
         <Link href="/" className="mt-2 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
           Play another fandom
         </Link>
-
-        {reactionGif && (
-          // eslint-disable-next-line @next/next/no-img-element -- external Giphy URL, not a local asset
-          <img
-            src={reactionGif.url}
-            width={reactionGif.width}
-            height={reactionGif.height}
-            alt=""
-            className="mt-4 rounded-xl"
-          />
-        )}
       </div>
     </main>
   );
